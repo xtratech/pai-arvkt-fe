@@ -10,10 +10,13 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { signOut } from "aws-amplify/auth";
+import { useRouter } from "next/navigation";
 import { LogOutIcon, SettingsIcon, UserIcon } from "./icons";
 
 export function UserInfo() {
   const [isOpen, setIsOpen] = useState(false);
+  const router = useRouter();
 
   const USER = {
     name: "John Smith",
@@ -106,7 +109,14 @@ export function UserInfo() {
         <div className="p-2 text-base text-[#4B5563] dark:text-dark-6">
           <button
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-[9px] hover:bg-gray-2 hover:text-dark dark:hover:bg-dark-3 dark:hover:text-white"
-            onClick={() => setIsOpen(false)}
+            onClick={async () => {
+              setIsOpen(false);
+              try {
+                await signOut();
+              } finally {
+                router.replace("/auth/sign-in");
+              }
+            }}
           >
             <LogOutIcon />
 

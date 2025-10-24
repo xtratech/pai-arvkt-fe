@@ -8,9 +8,29 @@ import { MenuIcon } from "./icons";
 import { Notification } from "./notification";
 import { ThemeToggleSwitch } from "./theme-toggle";
 import { UserInfo } from "./user-info";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { getCurrentUser } from "aws-amplify/auth";
 
 export function Header() {
   const { toggleSidebar, isMobile } = useSidebarContext();
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        await getCurrentUser();
+        if (active) setIsAuthenticated(true);
+      } catch {
+        if (active) setIsAuthenticated(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [pathname]);
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between border-b border-stroke bg-white px-4 py-5 shadow-1 dark:border-stroke-dark dark:bg-gray-dark md:px-5 2xl:px-10">
@@ -42,13 +62,12 @@ export function Header() {
       </div>
 
       <div className="flex flex-1 items-center justify-end gap-2 min-[375px]:gap-4">
-
         <ThemeToggleSwitch />
-
-
-        <div className="shrink-0">
-          <UserInfo />
-        </div>
+        {isAuthenticated && (
+          <div className="shrink-0">
+            <UserInfo />
+          </div>
+        )}
       </div>
     </header>
   );
