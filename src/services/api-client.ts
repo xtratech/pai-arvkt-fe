@@ -1,6 +1,7 @@
 "use client";
 
 import { del, get, patch, post, put } from "aws-amplify/api";
+import type { DocumentType } from "@aws-amplify/core/internals/utils";
 
 const DEFAULT_API_NAME =
   process.env.NEXT_PUBLIC_USERDATA_API_NAME ?? "UserDataAPI";
@@ -49,7 +50,11 @@ function normalizePath(path: string) {
   return path.startsWith("/") ? path : `/${path}`;
 }
 
-async function readBody(body: { text: () => Promise<string> }) {
+async function readBody(body?: { text?: () => Promise<string> }) {
+  if (!body?.text) {
+    return undefined;
+  }
+
   const raw = await body.text();
   if (!raw) {
     return undefined;
@@ -127,7 +132,7 @@ export async function apiPost<T = unknown, TBody = unknown>(
     options: {
       headers: options.headers,
       queryParams: normalizeQueryParams(options.queryParams),
-      body: options.body,
+      body: options.body as DocumentType | FormData | undefined,
     },
   });
 
@@ -144,7 +149,7 @@ export async function apiPut<T = unknown, TBody = unknown>(
     options: {
       headers: options.headers,
       queryParams: normalizeQueryParams(options.queryParams),
-      body: options.body,
+      body: options.body as DocumentType | FormData | undefined,
     },
   });
 
@@ -161,7 +166,7 @@ export async function apiPatch<T = unknown, TBody = unknown>(
     options: {
       headers: options.headers,
       queryParams: normalizeQueryParams(options.queryParams),
-      body: options.body,
+      body: options.body as DocumentType | FormData | undefined,
     },
   });
 

@@ -23,7 +23,6 @@ type UserAttributes = Record<string, string>;
 interface SessionTokens {
   idToken?: string;
   accessToken?: string;
-  refreshToken?: string;
 }
 
 interface UserContextValue {
@@ -85,12 +84,20 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      const normalizedAttributes: UserAttributes | null = userAttributes
+        ? Object.entries(userAttributes).reduce<UserAttributes>((acc, [key, value]) => {
+            if (typeof value === "string" && value.length > 0) {
+              acc[key] = value;
+            }
+            return acc;
+          }, {})
+        : null;
+
       setUser(currentUser);
-      setAttributes(userAttributes ?? null);
+      setAttributes(normalizedAttributes);
       setTokens({
         idToken: session.tokens?.idToken?.toString(),
         accessToken: session.tokens?.accessToken?.toString(),
-        refreshToken: session.tokens?.refreshToken?.toString(),
       });
     } catch (error) {
       if (!mountedRef.current) {
@@ -98,8 +105,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       }
 
       const authError = error as { name?: string };
-      const isUnauthenticated =
-        authError?.name === "UserUnAuthenticatedException";
+      const isUnauthenticated = authError?.name === "UserUnAuthenticatedException";
 
       setUser(null);
       setAttributes(null);
