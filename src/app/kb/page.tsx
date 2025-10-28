@@ -72,7 +72,7 @@ export default async function KnowledgebasePage({
                     <h5 className="text-dark dark:text-white font-medium">{k}</h5>
                   </td>
                   <td className="p-4 align-middle">
-                    <p className="text-dark dark:text-white break-words">{v}</p>
+                    <p className="text-dark dark:text-white break-words">v</p>
                   </td>
                 </tr>
               ))}
