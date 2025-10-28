@@ -10,19 +10,39 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { signOut } from "aws-amplify/auth";
 import { useRouter } from "next/navigation";
 import { LogOutIcon, SettingsIcon, UserIcon } from "./icons";
+import { useUser } from "@/contexts/user-context";
 
 export function UserInfo() {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
+  const { user, attributes, signOut: signOutUser } = useUser();
 
-  const USER = {
-    name: "John Smith",
-    email: "johnson@nextadmin.com",
-    img: "/images/user/user-03.png",
-  };
+  const fullNameFromParts = [
+    attributes?.given_name,
+    attributes?.middle_name,
+    attributes?.family_name,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  const displayName =
+    attributes?.name ||
+    (fullNameFromParts.length ? fullNameFromParts : undefined) ||
+    attributes?.preferred_username ||
+    user?.signInDetails?.loginId ||
+    user?.username ||
+    "My Account";
+
+  const displayEmail =
+    attributes?.email ||
+    user?.signInDetails?.loginId ||
+    attributes?.preferred_username ||
+    "";
+
+  const avatarSrc = attributes?.picture || "/images/user/user-03.png";
 
   return (
     <Dropdown isOpen={isOpen} setIsOpen={setIsOpen}>
@@ -31,15 +51,15 @@ export function UserInfo() {
 
         <figure className="flex items-center gap-3">
           <Image
-            src={USER.img}
+            src={avatarSrc}
             className="size-12 rounded-full object-cover"
-            alt={`Avatar of ${USER.name}`}
+            alt={`Avatar of ${displayName}`}
             role="presentation"
             width={200}
             height={200}
           />
           <figcaption className="flex items-center gap-1 font-medium text-dark dark:text-dark-6 max-[1024px]:sr-only">
-            <span>{USER.name}</span>
+            <span>{displayName}</span>
 
             <ChevronUpIcon
               aria-hidden
@@ -61,9 +81,9 @@ export function UserInfo() {
 
         <figure className="flex items-center gap-2.5 px-5 py-3.5">
           <Image
-            src={USER.img}
+            src={avatarSrc}
             className="size-12 rounded-full object-cover"
-            alt={`Avatar for ${USER.name}`}
+            alt={`Avatar for ${displayName}`}
             role="presentation"
             width={200}
             height={200}
@@ -71,10 +91,12 @@ export function UserInfo() {
 
           <figcaption className="space-y-1 text-base font-medium">
             <div className="mb-2 leading-none text-dark dark:text-white">
-              {USER.name}
+              {displayName}
             </div>
 
-            <div className="leading-none text-gray-6">{USER.email}</div>
+            {displayEmail && (
+              <div className="leading-none text-gray-6">{displayEmail}</div>
+            )}
           </figcaption>
         </figure>
 
@@ -112,7 +134,7 @@ export function UserInfo() {
             onClick={async () => {
               setIsOpen(false);
               try {
-                await signOut();
+                await signOutUser();
               } finally {
                 router.replace("/auth/sign-in");
               }

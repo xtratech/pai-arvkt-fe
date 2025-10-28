@@ -1,36 +1,16 @@
 "use client";
 
-import { SearchIcon } from "@/assets/icons";
+import { useUser } from "@/contexts/user-context";
 import Image from "next/image";
 import Link from "next/link";
 import { useSidebarContext } from "../sidebar/sidebar-context";
 import { MenuIcon } from "./icons";
-import { Notification } from "./notification";
 import { ThemeToggleSwitch } from "./theme-toggle";
 import { UserInfo } from "./user-info";
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
-import { getCurrentUser } from "aws-amplify/auth";
 
 export function Header() {
   const { toggleSidebar, isMobile } = useSidebarContext();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const pathname = usePathname();
-
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        await getCurrentUser();
-        if (active) setIsAuthenticated(true);
-      } catch {
-        if (active) setIsAuthenticated(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [pathname]);
+  const { isAuthenticated } = useUser();
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between border-b border-stroke bg-white px-4 py-5 shadow-1 dark:border-stroke-dark dark:bg-gray-dark md:px-5 2xl:px-10">

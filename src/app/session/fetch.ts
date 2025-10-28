@@ -1,6 +1,5 @@
 export async function getOverviewData() {
-  // Fake delay
-  await new Promise((resolve) => setTimeout(resolve, 2000));
+  // no-op for now; kept to avoid breaking imports
 }
 
 export async function getSessionRunsData() {
@@ -389,13 +388,17 @@ type Session = {
   notes?: string;
 };
 
-export async function getSessionById(sessionId: string): Promise<Session | undefined> {
-  const { getSessionsData } = await import("../sessions/fetch");
+export async function getSessionById(sessionId: string) {
+  const { getSessionsData } = await import('../sessions/fetch');
   const all = await getSessionsData();
-  return (all as any[]).find((s) => s.id === sessionId) as Session | undefined;
+  return (all as any[]).find((s) => s.id === sessionId);
 }
+
+
+
 
 export async function getSessionRunsBySessionId(sessionId: string) {
   const runs = await getSessionRunsData();
-  return runs.filter((r) => r.session_id === sessionId);
+  return runs.filter((run: any) => run.session_id === sessionId);
 }
+
