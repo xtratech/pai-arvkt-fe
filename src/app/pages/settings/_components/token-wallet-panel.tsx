@@ -15,6 +15,7 @@ const STRIPE_PUBLISHABLE_KEY = String(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE
 const stripePromise = STRIPE_PUBLISHABLE_KEY ? loadStripe(STRIPE_PUBLISHABLE_KEY) : null;
 
 const MAX_CHECKOUT_PACKAGES = 99;
+const FALLBACK_PACKAGE_TOKENS = 1_000_000;
 
 function formatTokenCount(value: unknown) {
   const parsed = Number(value);
@@ -34,6 +35,12 @@ function getAutoTopupEnabled(settings: Record<string, unknown>) {
 function getStripePaymentMethodId(settings: Record<string, unknown>) {
   const raw = settings.stripe_payment_method_id;
   return typeof raw === "string" && raw.trim() ? raw.trim() : null;
+}
+
+function readPositiveInt(value: unknown) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return Math.max(1, Math.round(parsed));
 }
 
 type Props = {
@@ -186,6 +193,9 @@ export function TokenWalletPanel({ userId, wallet, loading, onWalletUpdated, onR
   const autoTopupEnabled = getAutoTopupEnabled(autoTopupSettings);
   const paymentMethodId = getStripePaymentMethodId(autoTopupSettings);
 
+  const creditBalance = wallet?.credit_balance;
+  const totalUsage = wallet?.total_usage;
+
   const stripeConfigured = Boolean(stripePromise);
 
   const checkoutPackageQty = useMemo(() => {
@@ -193,6 +203,20 @@ export function TokenWalletPanel({ userId, wallet, loading, onWalletUpdated, onR
     if (!Number.isFinite(parsed)) return 1;
     return Math.min(MAX_CHECKOUT_PACKAGES, Math.max(1, Math.round(parsed)));
   }, [checkoutPackageQtyText]);
+
+  const packageTokens = useMemo(() => {
+    const fromEnv = readPositiveInt(process.env.NEXT_PUBLIC_WALLET_PACKAGE_TOKENS);
+    if (fromEnv) return fromEnv;
+
+    const fromSettings = readPositiveInt(autoTopupSettings.amount);
+    if (fromSettings) return fromSettings;
+
+    return FALLBACK_PACKAGE_TOKENS;
+  }, [autoTopupSettings.amount]);
+
+  const totalTokensToBuy = checkoutPackageQty * packageTokens;
+  const hasBalance = Number.isFinite(Number(creditBalance));
+  const estimatedBalance = hasBalance ? Math.max(0, Math.round(Number(creditBalance) + totalTokensToBuy)) : null;
 
   const setCheckoutPackageQty = useCallback((next: number) => {
     const clamped = Math.min(MAX_CHECKOUT_PACKAGES, Math.max(1, Math.round(next)));
@@ -347,9 +371,6 @@ export function TokenWalletPanel({ userId, wallet, loading, onWalletUpdated, onR
     }
   }, [onWalletUpdated, userId]);
 
-  const creditBalance = wallet?.credit_balance;
-  const totalUsage = wallet?.total_usage;
-
   return (
     <>
       <div className="flex flex-col gap-4 rounded-xl border border-stroke bg-white p-5 dark:border-dark-3 dark:bg-dark-2 sm:flex-row sm:items-center sm:justify-between">
@@ -460,6 +481,26 @@ export function TokenWalletPanel({ userId, wallet, loading, onWalletUpdated, onR
                 +
               </button>
             </div>
+          </div>
+
+          <div className="rounded-xl border border-stroke bg-white px-4 py-3 dark:border-dark-3 dark:bg-dark-2">
+            <div className="text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+              This purchase adds
+            </div>
+            <div className="mt-1 text-xl font-bold tabular-nums text-[rgb(169_240_15)]">
+              +{formatTokenCount(totalTokensToBuy)} tokens
+            </div>
+            <div className="mt-1 text-xs text-dark-5 dark:text-dark-6">
+              {formatTokenCount(packageTokens)} tokens per package
+            </div>
+            {estimatedBalance !== null ? (
+              <div className="mt-2 text-xs text-dark-5 dark:text-dark-6">
+                Estimated balance after checkout:{" "}
+                <span className="font-semibold tabular-nums text-dark dark:text-white">
+                  {formatTokenCount(estimatedBalance)}
+                </span>
+              </div>
+            ) : null}
           </div>
 
           <button
