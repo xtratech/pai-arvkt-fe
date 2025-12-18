@@ -162,7 +162,14 @@ export function KbArticleEditor({ sessionId, articleId }: Props) {
   if (!resolvedArticleId) {
     return (
       <div className="rounded-lg border border-stroke bg-white p-4 text-sm text-dark-5 dark:border-dark-3 dark:bg-dark-2 dark:text-dark-6">
-        No article ID provided. Open this page by clicking an article title in the session Knowledgebase Articles table.
+        No article ID provided. Open an article from{" "}
+        <Link
+          href={`/kb-articles?session_id=${encodeURIComponent(resolvedSessionId)}`}
+          className="text-primary underline-offset-2 hover:underline"
+        >
+          Knowledgebase Articles
+        </Link>
+        .
       </div>
     );
   }
@@ -197,4 +204,3 @@ export function KbArticleEditor({ sessionId, articleId }: Props) {
     </div>
   );
 }
-

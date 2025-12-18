@@ -16,7 +16,6 @@ import {
   buildSessionsIndexPath,
   buildUserPromptFilePath,
 } from "@/services/storage-paths";
-import { KnowledgebaseArticles } from "./knowledgebase-articles";
 
 function decodeBase64Url(input: string) {
   const normalized = input.replace(/-/g, '+').replace(/_/g, '/');
@@ -667,7 +666,22 @@ export function SessionView({ sessionId }: SessionViewProps) {
         </div>
       </div>
 
-      <KnowledgebaseArticles sessionId={session.id ?? sessionId} sessionConfig={sessionConfig} />
+      <div className="col-span-12 rounded-[10px] bg-white p-6 shadow-1 dark:bg-gray-dark dark:shadow-card">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-dark dark:text-white">Knowledgebase Articles</h3>
+            <p className="mt-1 text-sm text-dark-5 dark:text-dark-6">
+              Browse, create, and edit the source articles used for this session.
+            </p>
+          </div>
+          <Link
+            href={`/kb-articles?session_id=${session.id ?? sessionId}`}
+            className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90"
+          >
+            Open Knowledgebase Articles
+          </Link>
+        </div>
+      </div>
 
       {renderFileTable(
         "User Prompt Files",
