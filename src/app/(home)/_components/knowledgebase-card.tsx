@@ -39,7 +39,7 @@ export async function KnowledgebaseCard({ className = "" }: { className?: string
       {latest ? (
         <div className="rounded-md border p-4 dark:border-light-yellow-1">
           <div className="mb-1 text-sm text-dark-5 dark:text-dark-6">Latest session KB</div>
-          <Link href={`/kb?session_id=${latest.id}`} className="text-body-md font-semibold text-dark hover:underline dark:text-white">
+          <Link href={`/session?id=${latest.id}`} className="text-body-md font-semibold text-dark hover:underline dark:text-white">
             {latest.name}
           </Link>
           <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
@@ -55,4 +55,3 @@ export async function KnowledgebaseCard({ className = "" }: { className?: string
     </div>
   );
 }
-

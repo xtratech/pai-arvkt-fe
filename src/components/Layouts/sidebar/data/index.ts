@@ -30,23 +30,16 @@ export const NAV_DATA: NavSection[] = [
         ],
       },
       {
-        title: "Sessions",
+        title: "Bots",
         url: "/sessions",
         icon: Icons.Table,
         items: [
         ],
       },
       {
-        title: "System Prompts",
-        url: "/system-prompts",
-        icon: Icons.Table,
-        items: [
-        ],
-      },
-      {
-        title: "KBs",
-        url: "/kbs",
-        icon: Icons.Table,
+        title: "Chat Editor",
+        url: "/chat-editor",
+        icon: Icons.Alphabet,
         items: [
         ],
       }

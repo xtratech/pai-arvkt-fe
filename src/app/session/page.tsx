@@ -1,6 +1,7 @@
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import type { Metadata } from "next";
 import { SessionView } from "./_components/session-view";
+import { CreateSessionForm } from "./_components/create-session-form";
 
 export const metadata: Metadata = {
   title: "Session Page",
@@ -28,9 +29,18 @@ export default async function SessionPage({
     );
   }
 
+  if (id === "new") {
+    return (
+      <div className="mx-auto w-full max-w-[1460px]">
+        <Breadcrumb pageName="Create Session" />
+        <CreateSessionForm />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto w-full max-w-[1460px]">
-      <Breadcrumb pageName="Session" />
+      <Breadcrumb pageName="Bot" />
       <SessionView sessionId={id} />
     </div>
   );

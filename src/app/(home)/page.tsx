@@ -1,16 +1,4 @@
-import { PaymentsOverview } from "@/components/Charts/payments-overview";
-import { UsedDevices } from "@/components/Charts/used-devices";
-import { WeeksProfit } from "@/components/Charts/weeks-profit";
-import { TopChannels } from "@/components/Tables/top-channels";
-import { TopChannelsSkeleton } from "@/components/Tables/top-channels/skeleton";
-import { createTimeFrameExtractor } from "@/utils/timeframe-extractor";
-import { Suspense } from "react";
-import { OverviewCardsGroup } from "./_components/overview-cards";
-import { OverviewCardsSkeleton } from "./_components/overview-cards/skeleton";
-import { RegionLabels } from "./_components/region-labels";
 import { SessionsCard } from "./_components/sessions-card";
-import { SystemPromptsCard } from "./_components/system-prompts-card";
-import { KnowledgebaseCard } from "./_components/knowledgebase-card";
 
 type PropsType = {
   searchParams: Promise<{
@@ -68,16 +56,8 @@ export default async function Home({ searchParams }: PropsType) {
           </h2>
         </div>
 
-        <div className="grid grid-cols-6 gap-8">
-          <div className="col-span-3 xl:col-span-2">
-            <SessionsCard />
-          </div>
-          <div className="col-span-3 xl:col-span-2">
-            <SystemPromptsCard />
-          </div>
-          <div className="col-span-3 xl:col-span-2">
-            <KnowledgebaseCard />
-          </div>
+        <div className="grid grid-cols-6 gap-6">
+          <SessionsCard className="col-span-6 lg:col-span-3" />
         </div>
       </div>
     </>

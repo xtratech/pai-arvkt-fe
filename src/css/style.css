@@ -37,7 +37,7 @@
 
   
   .chat-height {
-    @apply h-[calc(100vh_-_8.125rem)] lg:h-[calc(100vh_-_5.625rem)];
+    @apply h-[calc(75vh_-_6.09375rem)] lg:h-[calc(75vh_-_4.21875rem)];
   }
 
   .inbox-height {

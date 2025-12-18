@@ -1,6 +1,8 @@
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import type { Metadata } from "next";
 import { getSessionById } from "../session/fetch";
+import { SystemPromptContent } from "./_components/system-prompt-content";
+import type { SessionRecord } from "@/services/sessions";
 
 export const metadata: Metadata = {
   title: "System Prompt",
@@ -26,18 +28,7 @@ export default async function SystemPromptPage({
     );
   }
 
-  const session = await getSessionById(sessionId);
-
-  if (!session) {
-    return (
-      <div className="mx-auto w-full max-w-[1460px]">
-        <Breadcrumb pageName="System Prompt" />
-        <div className="mt-6 rounded-[10px] bg-white p-6 shadow-1 dark:bg-gray-dark dark:shadow-card">
-          <p className="text-sm text-dark-5 dark:text-dark-6">Session not found.</p>
-        </div>
-      </div>
-    );
-  }
+  const session = await getSessionById(sessionId).catch(() => null);
 
   return (
     <div className="mx-auto w-full max-w-[1460px]">
@@ -47,22 +38,25 @@ export default async function SystemPromptPage({
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-dark dark:text-white">Session System Prompt</h2>
           <div className="mt-1 text-sm text-dark-5 dark:text-dark-6">
-            Session: <span className="text-dark dark:text-white font-medium">{session.name}</span>
-            <span className="mx-2">•</span>
-            ID: <span className="text-dark dark:text-white">{session.id}</span>
+            Session:{" "}
+            <span className="text-dark dark:text-white font-medium">
+              {session?.name ?? "Unknown"}
+            </span>
+            <span className="mx-2">|</span>
+            ID:{" "}
+            <a
+              href={`/session?id=${sessionId}`}
+              className="text-primary underline-offset-2 hover:underline"
+            >
+              {sessionId}
+            </a>
           </div>
         </div>
 
-        <div>
-          <div className="mb-2 text-sm font-medium text-dark dark:text-white">System Prompt</div>
-          {session.system_prompt ? (
-            <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-words rounded-md bg-gray-2 p-4 text-sm dark:bg-dark-2 dark:text-dark-6">
-{session.system_prompt}
-            </pre>
-          ) : (
-            <div className="text-sm text-dark-5 dark:text-dark-6">No system prompt set for this session.</div>
-          )}
-        </div>
+        <SystemPromptContent
+          sessionId={sessionId}
+          initialSession={session as SessionRecord | null}
+        />
       </div>
     </div>
   );

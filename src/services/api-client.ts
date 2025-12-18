@@ -112,7 +112,7 @@ export async function apiGet<T = unknown>(
 ) {
   const operation = get({
     apiName: resolveApiName(options.apiName),
-    path: normalizePath(path),
+    path: normalizePath(path || "/"),
     options: {
       headers: options.headers,
       queryParams: normalizeQueryParams(options.queryParams),

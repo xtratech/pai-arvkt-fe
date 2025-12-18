@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { cva } from "class-variance-authority";
 import Link from "next/link";
+import type { MouseEvent, ReactNode } from "react";
 import { useSidebarContext } from "./sidebar-context";
 
 const menuItemBaseStyles = cva(
@@ -22,9 +23,12 @@ const menuItemBaseStyles = cva(
 export function MenuItem(
   props: {
     className?: string;
-    children: React.ReactNode;
+    children: ReactNode;
     isActive: boolean;
-  } & ({ as?: "button"; onClick: () => void } | { as: "link"; href: string }),
+  } & (
+    | { as?: "button"; onClick: () => void }
+    | { as: "link"; href: string; onClick?: (event: MouseEvent<HTMLAnchorElement>) => void }
+  ),
 ) {
   const { toggleSidebar, isMobile } = useSidebarContext();
 
@@ -33,7 +37,10 @@ export function MenuItem(
       <Link
         href={props.href}
         // Close sidebar on clicking link if it's mobile
-        onClick={() => isMobile && toggleSidebar()}
+        onClick={(event) => {
+          props.onClick?.(event);
+          if (isMobile) toggleSidebar();
+        }}
         className={cn(
           menuItemBaseStyles({
             isActive: props.isActive,
@@ -51,10 +58,13 @@ export function MenuItem(
     <button
       onClick={props.onClick}
       aria-expanded={props.isActive}
-      className={menuItemBaseStyles({
-        isActive: props.isActive,
-        className: "flex w-full items-center gap-3 py-3",
-      })}
+      className={cn(
+        menuItemBaseStyles({
+          isActive: props.isActive,
+          className: "flex w-full items-center gap-3 py-3",
+        }),
+        props.className,
+      )}
     >
       {props.children}
     </button>

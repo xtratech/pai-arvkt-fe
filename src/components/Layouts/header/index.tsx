@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useSidebarContext } from "../sidebar/sidebar-context";
 import { MenuIcon } from "./icons";
 import { ThemeToggleSwitch } from "./theme-toggle";
+import { TokenBalancePill } from "./token-balance";
 import { UserInfo } from "./user-info";
 
 export function Header() {
@@ -36,13 +37,14 @@ export function Header() {
 
       <div className="max-xl:hidden">
         <h1 className="mb-0.5 text-heading-5 font-bold text-dark dark:text-white">
-          ARVT
+          Chat Pluree
         </h1>
-        <p className="font-medium">Pluree AI - AI Response Validator and Tuner</p>
+        <p className="font-medium text-dark-5 dark:text-dark-6">Your KnowledgeBase, tamed and activated.</p>
       </div>
 
       <div className="flex flex-1 items-center justify-end gap-2 min-[375px]:gap-4">
         <ThemeToggleSwitch />
+        <TokenBalancePill />
         {isAuthenticated && (
           <div className="shrink-0">
             <UserInfo />

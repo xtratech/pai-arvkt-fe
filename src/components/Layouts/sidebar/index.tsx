@@ -3,8 +3,9 @@
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import type React from "react";
 import { NAV_DATA } from "./data";
 import { ArrowLeftIcon, ChevronUp } from "./icons";
 import { MenuItem } from "./menu-item";
@@ -12,8 +13,13 @@ import { useSidebarContext } from "./sidebar-context";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { setIsOpen, isOpen, isMobile, toggleSidebar } = useSidebarContext();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [chatPromptOpen, setChatPromptOpen] = useState(false);
+  const [chatPromptDestination, setChatPromptDestination] = useState<"/chat" | "/chat-editor">("/chat");
+  const [chatSessionInput, setChatSessionInput] = useState("");
+  const [chatPromptError, setChatPromptError] = useState<string | null>(null);
 
   const toggleExpanded = (title: string) => {
     setExpandedItems((prev) => (prev.includes(title) ? [] : [title]));
@@ -41,6 +47,39 @@ export function Sidebar() {
       });
     });
   }, [pathname]);
+
+  const handleChatNavClick = useCallback(
+    (
+      event: React.MouseEvent<HTMLAnchorElement>,
+      destination: "/chat" | "/chat-editor",
+    ) => {
+      event.preventDefault();
+      setChatPromptError(null);
+      setChatSessionInput("");
+      setChatPromptDestination(destination);
+      setChatPromptOpen(true);
+    },
+    [],
+  );
+
+  const handleChatPromptSubmit = useCallback(() => {
+    const trimmed = chatSessionInput.trim();
+    if (!trimmed) {
+      setChatPromptError("Please enter a session ID.");
+      return;
+    }
+    setChatPromptOpen(false);
+    setChatPromptError(null);
+    router.push(`${chatPromptDestination}?session_id=${encodeURIComponent(trimmed)}`);
+    if (isMobile) {
+      setIsOpen(false);
+    }
+  }, [chatPromptDestination, chatSessionInput, isMobile, router, setIsOpen]);
+
+  const handleChatPromptCancel = useCallback(() => {
+    setChatPromptOpen(false);
+    setChatPromptError(null);
+  }, []);
 
   return (
     <>
@@ -148,6 +187,7 @@ export function Sidebar() {
                                 ? item.url + ""
                                 : "/" +
                                   item.title.toLowerCase().split(" ").join("-");
+                            const isChatItem = href === "/chat" || href === "/chat-editor";
 
                             return (
                               <MenuItem
@@ -155,6 +195,12 @@ export function Sidebar() {
                                 as="link"
                                 href={href}
                                 isActive={pathname === href}
+                                onClick={
+                                  isChatItem
+                                    ? (event: React.MouseEvent<HTMLAnchorElement>) =>
+                                        handleChatNavClick(event, href as "/chat" | "/chat-editor")
+                                    : undefined
+                                }
                               >
                                 <item.icon
                                   className="size-6 shrink-0"
@@ -175,6 +221,53 @@ export function Sidebar() {
           </div>
         </div>
       </aside>
+
+      {chatPromptOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-dark">
+            <h4 className="text-lg font-semibold text-dark dark:text-white">
+              {chatPromptDestination === "/chat-editor" ? "Open Chat Editor" : "Open Chat Playground"}
+            </h4>
+            <p className="mt-3 text-sm text-dark-5 dark:text-dark-6">
+              Enter a session ID to continue.
+            </p>
+            <div className="mt-4">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                Session ID
+              </label>
+              <input
+                type="text"
+                value={chatSessionInput}
+                onChange={(e) => setChatSessionInput(e.target.value)}
+                className="w-full rounded-lg border border-stroke px-3 py-2 text-sm text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                placeholder="e.g. sess-001"
+              />
+              {chatPromptError ? (
+                <div className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+                  {chatPromptError}
+                </div>
+              ) : null}
+            </div>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                className="rounded-lg border border-stroke px-4 py-2 text-xs font-semibold uppercase tracking-wide text-dark transition hover:shadow-sm dark:border-dark-3 dark:text-white"
+                onClick={handleChatPromptCancel}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={handleChatPromptSubmit}
+                disabled={!chatSessionInput.trim()}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

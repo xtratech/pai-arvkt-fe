@@ -13,6 +13,11 @@ function sanitizeEnv(value?: string | null) {
   return trimmed.length ? trimmed : undefined;
 }
 
+function normalizeEndpoint(value?: string) {
+  if (!value) return undefined;
+  return value.replace(/\/+$/, "");
+}
+
 export function configureAmplify() {
   if (configured) {
     return;
@@ -32,7 +37,9 @@ export function configureAmplify() {
     sanitizeEnv(process.env.NEXT_PUBLIC_AWS_USER_POOLS_WEB_CLIENT_ID);
   const apiName =
     sanitizeEnv(process.env.NEXT_PUBLIC_USERDATA_API_NAME) ?? DEFAULT_API_NAME;
-  const apiEndpoint = sanitizeEnv(process.env.NEXT_PUBLIC_USERDATA_API_ENDPOINT);
+  const apiEndpoint = normalizeEndpoint(
+    sanitizeEnv(process.env.NEXT_PUBLIC_USERDATA_API_ENDPOINT),
+  );
   const apiKey = sanitizeEnv(process.env.NEXT_PUBLIC_USERDATA_API_KEY);
 
   if ((!userPoolId || !userPoolClientId) && process.env.NODE_ENV !== "production") {
@@ -137,4 +144,3 @@ export function configureAmplify() {
   Amplify.configure(resourcesConfig, libraryOptions);
   configured = true;
 }
-

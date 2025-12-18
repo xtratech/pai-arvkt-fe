@@ -3,13 +3,13 @@ import type { Metadata } from "next";
 import { SessionList } from "./_components/session-list";
 
 export const metadata: Metadata = {
-  title: "Sessions Page",
+  title: "Bots Page",
 };
 
 export default function SessionsPage() {
   return (
     <div className="mx-auto w-full max-w-[1460px]">
-      <Breadcrumb pageName="Sessions" />
+      <Breadcrumb pageName="Bots" />
       <SessionList />
     </div>
   );
