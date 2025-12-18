@@ -9,6 +9,7 @@ import { fetchSessionDetail, type SessionConfig } from "@/services/sessions";
 import { recordUserWalletUsage } from "@/services/user-wallet";
 import ReactMarkdown, { type Components as MarkdownComponents } from "react-markdown";
 import {
+  Children,
   type FormEvent,
   type KeyboardEvent,
   type RefObject,
@@ -40,6 +41,14 @@ type SourceSegment = {
   source_id: string | null;
   source_title?: string | null;
 };
+
+type SourceModalState =
+  | { mode: "edit"; sourceId: string; sourceTitle: string | null }
+  | { mode: "create"; sourceId: null; sourceTitle: null; seedText: string };
+
+type SourceOpenRequest =
+  | { mode: "edit"; sourceId: string; sourceTitle?: string | null }
+  | { mode: "create"; seedText: string };
 
 type StatusEvent = CustomEvent<{ message?: string }>;
 
@@ -813,7 +822,7 @@ export function ChatInterface({
     () => (kbEndpoint ? joinUrl(kbEndpoint, "/source-article") : ""),
     [kbEndpoint],
   );
-  const [sourceModal, setSourceModal] = useState<{ sourceId: string; sourceTitle: string | null } | null>(null);
+  const [sourceModal, setSourceModal] = useState<SourceModalState | null>(null);
   const [sourceTitle, setSourceTitle] = useState<string>("");
   const [sourceBody, setSourceBody] = useState<string>("");
   const [sourceLoading, setSourceLoading] = useState(false);
@@ -1121,21 +1130,37 @@ export function ChatInterface({
     }
   };
 
-  const handleOpenSource = useCallback((sourceId: string, sourceTitle?: string | null) => {
-    const cleanId = String(sourceId ?? "").trim();
-    if (!cleanId) return;
-    setSourceModal({ sourceId: cleanId, sourceTitle: sourceTitle ?? null });
-    setSourceTitle(sourceTitle ? String(sourceTitle) : "");
-    setSourceBody("");
-    setSourceError(null);
-  }, []);
+  const handleOpenSource = useCallback(
+    (request:
+      | { mode: "edit"; sourceId: string; sourceTitle?: string | null }
+      | { mode: "create"; seedText: string }) => {
+      if (request.mode === "edit") {
+        const cleanId = String(request.sourceId ?? "").trim();
+        if (!cleanId) return;
+        const resolvedTitle = request.sourceTitle ? String(request.sourceTitle) : "";
+        setSourceModal({ mode: "edit", sourceId: cleanId, sourceTitle: request.sourceTitle ?? null });
+        setSourceTitle(resolvedTitle);
+        setSourceBody("");
+        setSourceError(null);
+        return;
+      }
+
+      const seedText = String(request.seedText ?? "").trimEnd();
+      setSourceModal({ mode: "create", sourceId: null, sourceTitle: null, seedText });
+      setSourceTitle("");
+      setSourceBody(seedText);
+      setSourceError(null);
+      setSourceLoading(false);
+    },
+    [],
+  );
 
   const handleCloseSource = useCallback(() => {
     setSourceModal(null);
     setSourceError(null);
   }, []);
 
-  const activeSourceId = sourceModal?.sourceId ?? null;
+  const activeSourceId = sourceModal?.mode === "edit" ? sourceModal.sourceId : null;
 
   useEffect(() => {
     if (!activeSourceId) return;
@@ -1223,11 +1248,11 @@ export function ChatInterface({
   }, [activeSourceId, enableAttribution, kbKeyName, kbKeyValue, sourceArticleEndpoint]);
 
   const handleSaveSource = useCallback(async () => {
-    if (!activeSourceId) return;
     if (!sourceArticleEndpoint) {
       setSourceError("Knowledge Base endpoint is not configured for this session.");
       return;
     }
+    if (!sourceModal) return;
     setSourceSaving(true);
     setSourceError(null);
     try {
@@ -1240,9 +1265,13 @@ export function ChatInterface({
       }
 
       const res = await fetch(sourceArticleEndpoint, {
-        method: "PUT",
+        method: sourceModal.mode === "edit" ? "PUT" : "POST",
         headers,
-        body: JSON.stringify({ id: activeSourceId, title: sourceTitle, content: sourceBody }),
+        body: JSON.stringify(
+          sourceModal.mode === "edit"
+            ? { id: sourceModal.sourceId, title: sourceTitle, content: sourceBody }
+            : { title: sourceTitle, content: sourceBody },
+        ),
       });
       const payload = await res.json().catch(() => null as any);
       if (!res.ok) {
@@ -1259,7 +1288,7 @@ export function ChatInterface({
     } finally {
       setSourceSaving(false);
     }
-  }, [activeSourceId, kbKeyName, kbKeyValue, sourceArticleEndpoint, sourceBody, sourceTitle]);
+  }, [kbKeyName, kbKeyValue, sourceArticleEndpoint, sourceBody, sourceModal, sourceTitle]);
 
   const chatCard = (
     <div className="rounded-[10px] border border-stroke bg-white shadow-1 dark:border-dark-3 dark:bg-gray-dark dark:shadow-card">
@@ -1423,15 +1452,29 @@ export function ChatInterface({
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <div className="text-sm font-semibold text-dark dark:text-white">Edit Knowledge Base Source</div>
+                  <div className="text-sm font-semibold text-dark dark:text-white">
+                    {sourceModal.mode === "create" ? "Add Knowledge Base Source" : "Edit Knowledge Base Source"}
+                  </div>
                   <div className="mt-1 text-xs text-dark-5 dark:text-dark-6">
-                    <span className="font-mono">{sourceModal.sourceId}</span>
-                    {sourceTitle ? (
+                    {sourceModal.mode === "edit" ? (
+                      <span className="font-mono">{sourceModal.sourceId}</span>
+                    ) : (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                        New article
+                      </span>
+                    )}
+                    {sourceTitle && sourceModal.mode === "edit" ? (
                       <span className="ml-2 rounded-full bg-gray-2 px-2 py-0.5 text-xs font-semibold text-dark dark:bg-dark-3 dark:text-white">
                         {sourceTitle}
                       </span>
                     ) : null}
                   </div>
+                  {sourceModal.mode === "create" && sourceModal.seedText ? (
+                    <div className="mt-2 rounded-lg border border-stroke bg-gray-1 px-3 py-2 text-xs text-dark dark:border-dark-3 dark:bg-dark-3 dark:text-dark-6">
+                      Segment: <span className="font-mono">{sourceModal.seedText.slice(0, 160)}</span>
+                      {sourceModal.seedText.length > 160 ? "…" : ""}
+                    </div>
+                  ) : null}
                 </div>
                 <button
                   type="button"
@@ -1463,7 +1506,13 @@ export function ChatInterface({
                   value={sourceBody}
                   onChange={(e) => setSourceBody(e.target.value)}
                   className="custom-scrollbar h-80 w-full resize-none rounded-lg border border-stroke bg-white px-3 py-2 text-sm text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-                  placeholder={sourceLoading ? "Loading..." : "No content returned for this source."}
+                  placeholder={
+                    sourceLoading
+                      ? "Loading..."
+                      : sourceModal.mode === "create"
+                        ? "Paste or write the new source article content here."
+                        : "No content returned for this source."
+                  }
                   disabled={sourceLoading || sourceSaving}
                 />
               </div>
@@ -1516,15 +1565,29 @@ export function ChatInterface({
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <div className="text-sm font-semibold text-dark dark:text-white">Edit Knowledge Base Source</div>
+                <div className="text-sm font-semibold text-dark dark:text-white">
+                  {sourceModal.mode === "create" ? "Add Knowledge Base Source" : "Edit Knowledge Base Source"}
+                </div>
                 <div className="mt-1 text-xs text-dark-5 dark:text-dark-6">
-                  <span className="font-mono">{sourceModal.sourceId}</span>
-                  {sourceTitle ? (
+                  {sourceModal.mode === "edit" ? (
+                    <span className="font-mono">{sourceModal.sourceId}</span>
+                  ) : (
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                      New article
+                    </span>
+                  )}
+                  {sourceTitle && sourceModal.mode === "edit" ? (
                     <span className="ml-2 rounded-full bg-gray-2 px-2 py-0.5 text-xs font-semibold text-dark dark:bg-dark-3 dark:text-white">
                       {sourceTitle}
                     </span>
                   ) : null}
                 </div>
+                {sourceModal.mode === "create" && sourceModal.seedText ? (
+                  <div className="mt-2 rounded-lg border border-stroke bg-gray-1 px-3 py-2 text-xs text-dark dark:border-dark-3 dark:bg-dark-3 dark:text-dark-6">
+                    Segment: <span className="font-mono">{sourceModal.seedText.slice(0, 160)}</span>
+                    {sourceModal.seedText.length > 160 ? "…" : ""}
+                  </div>
+                ) : null}
               </div>
               <button
                 type="button"
@@ -1556,7 +1619,13 @@ export function ChatInterface({
                 value={sourceBody}
                 onChange={(e) => setSourceBody(e.target.value)}
                 className="custom-scrollbar h-80 w-full resize-none rounded-lg border border-stroke bg-white px-3 py-2 text-sm text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-                placeholder={sourceLoading ? "Loading..." : "No content returned for this source."}
+                placeholder={
+                  sourceLoading
+                    ? "Loading..."
+                    : sourceModal.mode === "create"
+                      ? "Paste or write the new source article content here."
+                      : "No content returned for this source."
+                }
                 disabled={sourceLoading || sourceSaving}
               />
             </div>
@@ -1603,7 +1672,7 @@ type MessageProps = {
   analyzeSourcesEndpoint?: string;
   kbKeyName?: string;
   kbKeyValue?: string;
-  onOpenSource?: (sourceId: string, sourceTitle?: string | null) => void;
+  onOpenSource?: (request: SourceOpenRequest) => void;
   walletUserId?: string | null;
   usageMetadata?: UsageMetadata | null;
 };
@@ -1633,8 +1702,8 @@ function Message({
   const [analysisSegments, setAnalysisSegments] = useState<SourceSegment[] | null>(null);
   const [analysisStatus, setAnalysisStatus] = useState<"idle" | "loading" | "loaded" | "error">("idle");
   const [analysisError, setAnalysisError] = useState<string | null>(null);
-  const debounceRef = useRef<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const [isHovering, setIsHovering] = useState(false);
 
   const isAttributionEnabled = Boolean(enableAttribution && !isUser && !isLoading && analyzeSourcesEndpoint);
   const showSegmentedMarkdown = Boolean(isAttributionEnabled && analysisSegments && analysisSegments.length);
@@ -1656,6 +1725,10 @@ function Message({
     return {
       ...BOT_MARKDOWN_COMPONENTS,
       span({ node: _node, children, ...props }) {
+        const isAttributedSegment = Boolean(
+          (props as Record<string, unknown>)["data-attrib-seg"] ??
+            (props as Record<string, unknown>)["dataAttribSeg"],
+        );
         const sourceId =
           (props as Record<string, unknown>)["data-source-id"] ??
           (props as Record<string, unknown>)["dataSourceId"] ??
@@ -1667,10 +1740,16 @@ function Message({
 
         const resolvedSourceId = typeof sourceId === "string" && sourceId.trim() ? sourceId.trim() : null;
         const resolvedSourceTitle = typeof sourceTitle === "string" && sourceTitle.trim() ? sourceTitle.trim() : null;
-        const canEdit = Boolean(resolvedSourceId && onOpenSource);
+        const childrenArray = Children.toArray(children);
+        const segmentText = childrenArray.map((child) => (typeof child === "string" ? child : "")).join("");
+
+        const canEditExisting = Boolean(resolvedSourceId && onOpenSource);
+        const canCreateNew = Boolean(
+          isAttributedSegment && !resolvedSourceId && onOpenSource && segmentText.trim().length > 0,
+        );
         const label = resolvedSourceTitle ?? resolvedSourceId ?? "";
 
-        if (!canEdit) {
+        if (!canEditExisting && !canCreateNew) {
           return <span {...props}>{children}</span>;
         }
 
@@ -1680,26 +1759,42 @@ function Message({
             {...props}
             role="button"
             tabIndex={0}
-            title={resolvedSourceTitle ? `Source: ${resolvedSourceTitle}` : undefined}
+            title={
+              canEditExisting
+                ? resolvedSourceTitle
+                  ? `Source: ${resolvedSourceTitle}`
+                  : undefined
+                : "Add New Article"
+            }
             className={`${baseClassName} relative inline cursor-pointer rounded-sm transition-colors hover:bg-yellow-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 dark:hover:bg-yellow-900/30`}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
-              if (!resolvedSourceId) return;
-              onOpenSource?.(resolvedSourceId, resolvedSourceTitle);
+              if (canEditExisting && resolvedSourceId) {
+                onOpenSource?.({ mode: "edit", sourceId: resolvedSourceId, sourceTitle: resolvedSourceTitle });
+                return;
+              }
+              if (canCreateNew) {
+                onOpenSource?.({ mode: "create", seedText: segmentText });
+              }
             }}
             onKeyDown={(event) => {
               if (event.key !== "Enter" && event.key !== " ") return;
               event.preventDefault();
               event.stopPropagation();
-              if (!resolvedSourceId) return;
-              onOpenSource?.(resolvedSourceId, resolvedSourceTitle);
+              if (canEditExisting && resolvedSourceId) {
+                onOpenSource?.({ mode: "edit", sourceId: resolvedSourceId, sourceTitle: resolvedSourceTitle });
+                return;
+              }
+              if (canCreateNew) {
+                onOpenSource?.({ mode: "create", seedText: segmentText });
+              }
             }}
           >
             <span className="relative group">
               {children}
               <span className="pointer-events-none absolute left-0 top-full z-20 mt-1 w-max max-w-[280px] rounded-md bg-dark px-2 py-1 text-[10px] font-semibold text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-white dark:text-dark">
-                Source: {label}
+                {canEditExisting ? `Source: ${label}` : "Add New Article"}
               </span>
             </span>
           </span>
@@ -1708,19 +1803,11 @@ function Message({
     };
   }, [onOpenSource]);
 
-  const cancelPendingAnalysis = useCallback(() => {
-    if (debounceRef.current) {
-      window.clearTimeout(debounceRef.current);
-      debounceRef.current = null;
-    }
-  }, []);
-
   useEffect(() => {
     return () => {
-      cancelPendingAnalysis();
       abortRef.current?.abort();
     };
-  }, [cancelPendingAnalysis]);
+  }, []);
 
   const runAttributionAnalysis = useCallback(async () => {
     if (!isAttributionEnabled) return;
@@ -1823,36 +1910,45 @@ function Message({
     walletUserId,
   ]);
 
-  const handleMouseEnter = useCallback(() => {
-    if (!isAttributionEnabled) return;
-    if (analysisSegments) return;
-    if (analysisStatus === "loading") return;
-    if (debounceRef.current) return;
-
-    debounceRef.current = window.setTimeout(() => {
-      debounceRef.current = null;
-      void runAttributionAnalysis();
-    }, 250);
-  }, [analysisSegments, analysisStatus, isAttributionEnabled, runAttributionAnalysis]);
-
-  const handleMouseLeave = useCallback(() => {
-    cancelPendingAnalysis();
-  }, [cancelPendingAnalysis]);
-
   return (
     <div className={`flex w-full ${isUser ? "justify-end" : "justify-start"}`}>
       <div className={`flex flex-col gap-2 ${isUser ? "items-end" : "items-start"}`}>
         <div
           className={`${bubbleBase} ${isUser ? userStyles : botStyles} ${isAttributionEnabled ? "relative" : ""}`}
-          onMouseEnter={isAttributionEnabled ? handleMouseEnter : undefined}
-          onMouseLeave={isAttributionEnabled ? handleMouseLeave : undefined}
+          onMouseEnter={isAttributionEnabled ? () => setIsHovering(true) : undefined}
+          onMouseLeave={isAttributionEnabled ? () => setIsHovering(false) : undefined}
         >
-          {analysisStatus === "loading" ? (
-            <span
-              className="absolute right-3 top-3 inline-flex h-2 w-2 rounded-full bg-primary/60 animate-pulse"
-              aria-label="Analyzing sources"
-            />
-          ) : null}
+          {(() => {
+            const canOfferEdit =
+              isAttributionEnabled &&
+              !showSegmentedMarkdown &&
+              (analysisStatus === "idle" || analysisStatus === "error") &&
+              Boolean(text.trim());
+            const overlayVisible = canOfferEdit && isHovering;
+            const loadingVisible = isAttributionEnabled && analysisStatus === "loading";
+            const showOverlay = overlayVisible || loadingVisible;
+
+            if (!showOverlay) return null;
+
+            return (
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/60 backdrop-blur-sm dark:bg-dark-2/60">
+                {analysisStatus === "loading" ? (
+                  <div className="flex items-center gap-2 rounded-full bg-white/70 px-4 py-2 text-xs font-semibold text-dark shadow-sm dark:bg-dark-3/80 dark:text-white">
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-primary border-t-transparent" />
+                    Loading sources…
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-white shadow-sm transition hover:bg-opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                    onClick={() => void runAttributionAnalysis()}
+                  >
+                    Edit
+                  </button>
+                )}
+              </div>
+            );
+          })()}
           {isLoading ? (
             <div className="flex items-center gap-1">
               <span className="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" />
@@ -1860,24 +1956,32 @@ function Message({
               <span className="h-2 w-2 animate-bounce rounded-full bg-primary" />
             </div>
           ) : (
-            isUser ? (
-              text
-            ) : showSegmentedMarkdown ? (
-              <ReactMarkdown
-                components={segmentedMarkdownComponents}
-                rehypePlugins={[[rehypeAttributionSegments, { segments: analysisSegments ?? [] }]] as any}
-              >
-                {text}
-              </ReactMarkdown>
-            ) : (
-              <ReactMarkdown components={BOT_MARKDOWN_COMPONENTS}>{text}</ReactMarkdown>
-            )
-          )}
-          {!isUser && !isLoading && tokenUsageText ? (
-            <div className="mt-2 text-[10px] font-semibold text-[rgb(169_240_15)]">
-              Tokens: {tokenUsageText}
+            <div
+              className={
+                isAttributionEnabled && !showSegmentedMarkdown && (isHovering || analysisStatus === "loading")
+                  ? "blur-[2px] transition-[filter]"
+                  : ""
+              }
+            >
+              {isUser ? (
+                text
+              ) : showSegmentedMarkdown ? (
+                <ReactMarkdown
+                  components={segmentedMarkdownComponents}
+                  rehypePlugins={[[rehypeAttributionSegments, { segments: analysisSegments ?? [] }]] as any}
+                >
+                  {text}
+                </ReactMarkdown>
+              ) : (
+                <ReactMarkdown components={BOT_MARKDOWN_COMPONENTS}>{text}</ReactMarkdown>
+              )}
+              {!isUser && tokenUsageText ? (
+                <div className="mt-2 text-[10px] font-semibold text-[rgb(169_240_15)]">
+                  Tokens: {tokenUsageText}
+                </div>
+              ) : null}
             </div>
-          ) : null}
+          )}
         </div>
         {!isUser && analysisStatus === "error" && analysisError ? (
           <div className="pl-1 text-xs text-red-600 dark:text-red-400">{analysisError}</div>
@@ -1911,7 +2015,7 @@ type MessageListProps = {
   analyzeSourcesEndpoint?: string;
   kbKeyName?: string;
   kbKeyValue?: string;
-  onOpenSource?: (sourceId: string, sourceTitle?: string | null) => void;
+  onOpenSource?: (request: SourceOpenRequest) => void;
   walletUserId?: string | null;
 };
 
