@@ -375,13 +375,13 @@ export function TokenWalletPanel({ userId, wallet, loading, onWalletUpdated, onR
     <>
       <div className="flex flex-col gap-4 rounded-xl border border-stroke bg-white p-5 dark:border-dark-3 dark:bg-dark-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <div className="text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+          <div className="text-sm font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
             Token Balance
           </div>
-          <div className="mt-1 text-3xl font-bold tabular-nums text-[rgb(169_240_15)]">
+          <div className="mt-1 text-6xl font-bold leading-none tabular-nums text-[rgb(169_240_15)]">
             {loading ? "…" : formatTokenCount(creditBalance)}
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-dark-5 dark:text-dark-6">
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-lg text-dark-5 dark:text-dark-6">
             <span>
               Total usage:{" "}
               <span className="font-semibold tabular-nums text-dark dark:text-white">
@@ -390,7 +390,7 @@ export function TokenWalletPanel({ userId, wallet, loading, onWalletUpdated, onR
             </span>
             <button
               type="button"
-              className="rounded-full border border-stroke px-3 py-1 text-xs font-semibold text-dark transition hover:bg-gray-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:text-white dark:hover:bg-dark-3"
+              className="rounded-full border border-stroke px-4 py-1.5 text-sm font-semibold text-dark transition hover:bg-gray-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:text-white dark:hover:bg-dark-3"
               onClick={onRefresh}
               disabled={loading || buying || toggling || setupBusy}
             >
