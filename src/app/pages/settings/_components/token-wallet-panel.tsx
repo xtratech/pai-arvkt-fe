@@ -14,6 +14,8 @@ import {
 const STRIPE_PUBLISHABLE_KEY = String(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "").trim();
 const stripePromise = STRIPE_PUBLISHABLE_KEY ? loadStripe(STRIPE_PUBLISHABLE_KEY) : null;
 
+const MAX_CHECKOUT_PACKAGES = 99;
+
 function formatTokenCount(value: unknown) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return "—";
@@ -175,6 +177,7 @@ export function TokenWalletPanel({ userId, wallet, loading, onWalletUpdated, onR
   const [setupModalOpen, setSetupModalOpen] = useState(false);
   const [setupClientSecret, setSetupClientSecret] = useState<string>("");
   const [setupBusy, setSetupBusy] = useState(false);
+  const [checkoutPackageQtyText, setCheckoutPackageQtyText] = useState("1");
 
   const autoTopupSettings = useMemo(
     () => normalizeAutoTopupSettings(wallet?.auto_topup_settings),
@@ -185,6 +188,17 @@ export function TokenWalletPanel({ userId, wallet, loading, onWalletUpdated, onR
 
   const stripeConfigured = Boolean(stripePromise);
 
+  const checkoutPackageQty = useMemo(() => {
+    const parsed = Number(checkoutPackageQtyText);
+    if (!Number.isFinite(parsed)) return 1;
+    return Math.min(MAX_CHECKOUT_PACKAGES, Math.max(1, Math.round(parsed)));
+  }, [checkoutPackageQtyText]);
+
+  const setCheckoutPackageQty = useCallback((next: number) => {
+    const clamped = Math.min(MAX_CHECKOUT_PACKAGES, Math.max(1, Math.round(next)));
+    setCheckoutPackageQtyText(String(clamped));
+  }, []);
+
   const handleBuyCredits = useCallback(async () => {
     if (!stripeConfigured) {
       setPanelError("Stripe is not configured. Set NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY to enable payments.");
@@ -194,7 +208,7 @@ export function TokenWalletPanel({ userId, wallet, loading, onWalletUpdated, onR
     setBuying(true);
     setPanelError(null);
     try {
-      const payload = await createCheckoutSession(userId, { quantity: 1 });
+      const payload = await createCheckoutSession(userId, { quantity: checkoutPackageQty });
       const sessionId =
         typeof payload?.sessionId === "string" && payload.sessionId.trim()
           ? payload.sessionId.trim()
@@ -221,7 +235,7 @@ export function TokenWalletPanel({ userId, wallet, loading, onWalletUpdated, onR
     } finally {
       setBuying(false);
     }
-  }, [stripeConfigured, userId]);
+  }, [checkoutPackageQty, stripeConfigured, userId]);
 
   const updateEnabled = useCallback(
     async (nextEnabled: boolean) => {
@@ -393,6 +407,61 @@ export function TokenWalletPanel({ userId, wallet, loading, onWalletUpdated, onR
             </button>
           </div>
 
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-stroke bg-gray-1 px-4 py-3 dark:border-dark-3 dark:bg-dark-3">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                Packages
+              </div>
+              <div className="mt-1 text-sm font-semibold text-dark dark:text-white">
+                {checkoutPackageQty} {checkoutPackageQty === 1 ? "package" : "packages"}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-stroke text-sm font-semibold text-dark transition hover:bg-gray-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:text-white dark:hover:bg-dark-2"
+                onClick={() => setCheckoutPackageQty(checkoutPackageQty - 1)}
+                disabled={loading || buying || checkoutPackageQty <= 1}
+                aria-label="Decrease packages"
+              >
+                −
+              </button>
+
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={checkoutPackageQtyText}
+                disabled={loading || buying}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  if (next === "") {
+                    setCheckoutPackageQtyText("");
+                    return;
+                  }
+                  if (!/^[0-9]{0,3}$/.test(next)) return;
+                  setCheckoutPackageQtyText(next);
+                }}
+                onBlur={() => {
+                  setCheckoutPackageQty(checkoutPackageQty);
+                }}
+                className="h-8 w-16 rounded-lg border border-stroke bg-white px-2 text-center text-sm font-semibold tabular-nums text-dark shadow-sm outline-none transition focus:border-primary disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                aria-label="Packages quantity"
+              />
+
+              <button
+                type="button"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-stroke text-sm font-semibold text-dark transition hover:bg-gray-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:text-white dark:hover:bg-dark-2"
+                onClick={() => setCheckoutPackageQty(checkoutPackageQty + 1)}
+                disabled={loading || buying || checkoutPackageQty >= MAX_CHECKOUT_PACKAGES}
+                aria-label="Increase packages"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
           <button
             type="button"
             className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
@@ -400,7 +469,11 @@ export function TokenWalletPanel({ userId, wallet, loading, onWalletUpdated, onR
             disabled={buying || loading}
             title={!stripeConfigured ? "Stripe is not configured." : undefined}
           >
-            {buying ? "Redirecting…" : "Buy Credits"}
+            {buying
+              ? "Redirecting…"
+              : checkoutPackageQty === 1
+                ? "Buy Credits"
+                : `Buy ${checkoutPackageQty} packages`}
           </button>
           <p className="text-xs text-dark-5 dark:text-dark-6">
             Buy additional tokens, or enable auto top-ups to prevent running out.
@@ -428,4 +501,3 @@ export function TokenWalletPanel({ userId, wallet, loading, onWalletUpdated, onR
     </>
   );
 }
-
