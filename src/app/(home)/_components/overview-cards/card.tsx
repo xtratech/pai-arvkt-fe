@@ -13,11 +13,11 @@ type PropsType = {
 };
 
 export function OverviewCard({ label, data, Icon }: PropsType) {
-  const hasGrowthRate =
-    typeof data.growthRate === "number" && Number.isFinite(data.growthRate);
-  const isDecreasing = hasGrowthRate && data.growthRate < 0;
+  const growthRate = data.growthRate;
+  const hasGrowthRate = typeof growthRate === "number" && Number.isFinite(growthRate);
+  const isDecreasing = hasGrowthRate ? growthRate < 0 : false;
   const growthLabel = hasGrowthRate
-    ? `${Math.round(Math.abs(data.growthRate) * 10) / 10}%`
+    ? `${Math.round(Math.abs(growthRate) * 10) / 10}%`
     : null;
 
   return (
