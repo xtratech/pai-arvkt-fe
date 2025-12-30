@@ -293,12 +293,12 @@ export function SessionView({ sessionId }: SessionViewProps) {
         setRuns(fetchedRuns);
 
         if (!fetchedSession) {
-          setError("Session not found.");
+        setError("Agent not found.");
         }
       } catch (err) {
         if (!active) return;
         console.error("[SessionView] Unable to load session detail", err);
-        setError("Unable to load this session right now.");
+        setError("Unable to load this agent right now.");
       } finally {
         if (active) {
           setLoading(false);
@@ -335,7 +335,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
       const message =
         err instanceof Error && err.message
           ? err.message
-          : "Unable to delete this session. Please try again.";
+          : "Unable to delete this agent. Please try again.";
       setDeleteError(message);
     } finally {
       setDeleting(false);
@@ -521,7 +521,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                 href={`/session/edit?id=${session.id}`}
                 className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90"
               >
-                Edit Session
+                Edit Agent
             </Link>
             <Link
               href={`/chat-editor?session_id=${encodeURIComponent(session.id)}`}
@@ -538,7 +538,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                 }}
                 disabled={deleting}
               >
-                {deleting ? "Deleting..." : "Delete Session"}
+                {deleting ? "Deleting..." : "Delete Agent"}
               </button>
             </div>
           </div>
@@ -581,7 +581,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
               <dd className="break-all text-dark dark:text-white">
                 {maskSecretValue(sessionConfig.chat_api_key)}
               </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Train Chatbot Command</dt>
+              <dt className="text-dark-5 dark:text-dark-6">Train Agent Command</dt>
               <dd className="break-all text-dark dark:text-white">
                 {formatConfigValue(sessionConfig.train_chatbot_command)}
               </dd>
@@ -654,7 +654,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
           <div>
             <h3 className="text-lg font-semibold text-dark dark:text-white">LLM System Settings</h3>
             <p className="mt-1 text-sm text-dark-5 dark:text-dark-6">
-              Edit the live system prompt and model parameters for this session.
+              Edit the live system prompt and model parameters for this agent.
             </p>
           </div>
           <Link
@@ -671,7 +671,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
           <div>
             <h3 className="text-lg font-semibold text-dark dark:text-white">Knowledgebase Articles</h3>
             <p className="mt-1 text-sm text-dark-5 dark:text-dark-6">
-              Browse, create, and edit the source articles used for this session.
+              Browse, create, and edit the source articles used for this agent.
             </p>
           </div>
           <Link
@@ -734,9 +734,9 @@ export function SessionView({ sessionId }: SessionViewProps) {
       {confirmDeleteSession ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-dark">
-            <h4 className="text-lg font-semibold text-dark dark:text-white">Delete Session</h4>
+            <h4 className="text-lg font-semibold text-dark dark:text-white">Delete Agent</h4>
             <p className="mt-3 text-sm text-dark-5 dark:text-dark-6">
-              Are you sure you want to delete this session? This action cannot be undone.
+              Are you sure you want to delete this agent? This action cannot be undone.
             </p>
             {deleteError ? (
               <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
@@ -758,7 +758,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                 onClick={handleDelete}
                 disabled={deleting}
               >
-                {deleting ? "Deleting..." : "Delete Session"}
+                {deleting ? "Deleting..." : "Delete Agent"}
               </button>
             </div>
           </div>
@@ -815,7 +815,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                     className="px-4 py-3 text-sm text-dark-5 dark:text-dark-6"
                     colSpan={5}
                   >
-                    No runs yet for this session.
+                    No runs yet for this agent.
                   </td>
                 </tr>
               ) : null}

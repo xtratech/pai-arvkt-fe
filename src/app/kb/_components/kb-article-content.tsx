@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { withAuthHeaders } from "@/lib/auth-headers";
 
 type Props = {
   kbEndpoint: string;
@@ -108,7 +109,7 @@ export function KbArticleContent({
 
   const loadArticle = useCallback(async () => {
     if (!resolvedEndpoint) {
-      setError("Knowledge Base endpoint is not configured for this session.");
+      setError("Knowledge Base endpoint is not configured for this agent.");
       return;
     }
     if (!resolvedId) {
@@ -129,13 +130,14 @@ export function KbArticleContent({
       if (resolvedKeyValue) {
         headers[resolvedKeyName] = resolvedKeyValue;
       }
+      const authHeaders = await withAuthHeaders(headers);
 
       const url = new URL(resolvedEndpoint);
       url.searchParams.set("id", resolvedId);
 
       const res = await fetch(url.toString(), {
         method: "GET",
-        headers,
+        headers: authHeaders,
         cache: "no-store",
         signal: controller.signal,
       });
@@ -182,7 +184,7 @@ export function KbArticleContent({
 
   const handleSave = useCallback(async () => {
     if (!resolvedEndpoint) {
-      setError("Knowledge Base endpoint is not configured for this session.");
+      setError("Knowledge Base endpoint is not configured for this agent.");
       return;
     }
     if (!resolvedId) {
@@ -201,10 +203,11 @@ export function KbArticleContent({
       if (resolvedKeyValue) {
         headers[resolvedKeyName] = resolvedKeyValue;
       }
+      const authHeaders = await withAuthHeaders(headers);
 
       const res = await fetch(resolvedEndpoint, {
         method: "PUT",
-        headers,
+        headers: authHeaders,
         body: JSON.stringify({ id: resolvedId, title, content }),
       });
       const payload = await res.json().catch(async () => {
@@ -300,4 +303,3 @@ export function KbArticleContent({
     </div>
   );
 }
-

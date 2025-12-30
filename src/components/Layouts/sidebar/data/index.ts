@@ -24,13 +24,13 @@ export const NAV_DATA: NavSection[] = [
     items: [
       {
         title: "Dashboard",
-        url: "/",
+        url: "/dashboard",
         icon: Icons.HomeIcon,
         items: [
         ],
       },
       {
-        title: "Bots",
+        title: "Agents",
         url: "/sessions",
         icon: Icons.Table,
         items: [

@@ -1,3 +1,5 @@
+import { withAuthHeaders } from "@/lib/auth-headers";
+
 export type UserWalletAutoTopupSettings = Record<string, unknown> | null;
 
 export type UserWalletTransaction = Record<string, unknown>;
@@ -77,7 +79,7 @@ function getUserWalletApiKey() {
   ).trim();
 }
 
-function buildHeaders(contentType?: string) {
+async function buildHeaders(contentType?: string) {
   const headers: Record<string, string> = {
     accept: "application/json",
   };
@@ -88,7 +90,7 @@ function buildHeaders(contentType?: string) {
   if (apiKey) {
     headers["x-api-key"] = apiKey;
   }
-  return headers;
+  return withAuthHeaders(headers);
 }
 
 async function readJsonSafely(response: Response) {
@@ -113,7 +115,7 @@ export async function fetchUserWallet(userId: string, options?: { signal?: Abort
 
   const res = await fetch(url.toString(), {
     method: "GET",
-    headers: buildHeaders(),
+    headers: await buildHeaders(),
     cache: "no-store",
     signal: options?.signal,
   });
@@ -157,7 +159,7 @@ export async function updateUserWalletAutoTopup(
 
   const res = await fetch(endpoint, {
     method: "PUT",
-    headers: buildHeaders("application/json"),
+    headers: await buildHeaders("application/json"),
     body: JSON.stringify({
       user_id: resolvedUserId,
       auto_topup_settings: autoTopupSettings,
@@ -204,7 +206,7 @@ export async function recordUserWalletUsage(
 
   const res = await fetch(endpoint, {
     method: "PUT",
-    headers: buildHeaders("application/json"),
+    headers: await buildHeaders("application/json"),
     body: JSON.stringify({
       user_id: resolvedUserId,
       tokens_spent: tokensSpent,
@@ -241,7 +243,7 @@ export async function createCheckoutSession(userId: string, options: { quantity:
 
   const res = await fetch(joinUrl(endpoint, "/create-checkout-session"), {
     method: "POST",
-    headers: buildHeaders("application/json"),
+    headers: await buildHeaders("application/json"),
     body: JSON.stringify({ user_id: resolvedUserId, quantity: resolvedQty }),
   });
 
@@ -269,7 +271,7 @@ export async function createSetupIntent(userId: string) {
 
   const res = await fetch(joinUrl(endpoint, "/create-setup-intent"), {
     method: "POST",
-    headers: buildHeaders("application/json"),
+    headers: await buildHeaders("application/json"),
     body: JSON.stringify({ user_id: resolvedUserId }),
   });
 

@@ -58,7 +58,7 @@ export async function SystemPromptsCard({ className = "" }: { className?: string
           )}
         </div>
       ) : (
-        <div className="text-sm text-dark-5 dark:text-dark-6">No sessions available yet.</div>
+        <div className="text-sm text-dark-5 dark:text-dark-6">No agents available yet.</div>
       )}
     </div>
   );

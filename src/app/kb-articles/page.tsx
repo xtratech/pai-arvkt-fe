@@ -22,7 +22,7 @@ export default async function KbArticlesPage({
       <div className="mt-6 rounded-[10px] border border-stroke bg-white p-4 shadow-1 dark:border-dark-3 dark:bg-gray-dark dark:shadow-card sm:p-7.5">
         {!sessionId ? (
           <div className="text-sm text-dark-5 dark:text-dark-6">
-            No session_id provided.
+            No agent ID provided.
           </div>
         ) : (
           <KbArticlesContent sessionId={sessionId} />

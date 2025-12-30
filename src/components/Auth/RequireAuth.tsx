@@ -17,8 +17,9 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
     }
 
     const isAuthRoute = pathname?.startsWith("/auth");
+    const isPublicRoute = pathname === "/";
 
-    if (isAuthRoute) {
+    if (isAuthRoute || isPublicRoute) {
       redirectInFlightRef.current = false;
       setRedirecting(false);
       return;
@@ -37,7 +38,7 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
     setRedirecting(false);
   }, [isAuthenticated, isLoading, pathname, router]);
 
-  if (isLoading || redirecting) {
+  if ((isLoading || redirecting) && pathname !== "/") {
     return (
       <div className="flex min-h-[200px] items-center justify-center">
         <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-primary border-t-transparent" />

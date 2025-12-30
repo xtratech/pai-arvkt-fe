@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useUser } from "@/contexts/user-context";
 import {
   fetchSessionDetail,
@@ -9,15 +10,65 @@ import {
   type SessionRecord,
 } from "@/services/sessions";
 import {
+  isAsyncJobResponse,
+  pollChatJob,
+  startChat,
+  type AsyncJobResponse,
+  type ChatSyncResponse,
+} from "@/services/chat-async-jobs";
+import {
   fetchSourceArticles,
   parseCsvFilter,
   type SourceArticleRecord,
   type SourceArticlesFilters,
 } from "@/services/kb-source-articles";
+import { buildBearerTokenFromTokens } from "@/lib/auth-headers";
 
 type Props = {
   sessionId: string;
 };
+
+type DraftWizardStep = "idea" | "processing" | "decision" | "editor";
+
+type AnalyzerSegment = {
+  segment_text: string;
+  source_id: string | null;
+  source_title?: string | null;
+  supporting_quote?: string | null;
+  confidence?: number;
+};
+
+type DraftDuplicateMatch = {
+  id: string;
+  title: string;
+  confidence: number;
+  segments: AnalyzerSegment[];
+};
+
+type CreatorDraftPayload = {
+  title: string;
+  content: string;
+  source_ids_and_titles_used?: string[];
+  assumptions?: string[];
+  open_questions?: string[];
+};
+
+const ANALYZER_CONFIDENCE_THRESHOLD = 0.8;
+
+function createUuidV4() {
+  const cryptoObj = (globalThis as Record<string, unknown>).crypto as { randomUUID?: () => string } | undefined;
+  if (cryptoObj?.randomUUID) {
+    return cryptoObj.randomUUID();
+  }
+
+  let timestamp = Date.now();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (timestamp + Math.random() * 16) % 16 | 0;
+    timestamp = Math.floor(timestamp / 16);
+    if (c === "x") return r.toString(16);
+    return ((r & 0x3) | 0x8).toString(16);
+  });
+}
 
 function decodeBase64Url(input: string) {
   const normalized = input.replace(/-/g, "+").replace(/_/g, "/");
@@ -84,6 +135,163 @@ function resolveSourceArticleEndpoint(kbEndpoint: string) {
   return joinUrl(normalized, "kb/source-article");
 }
 
+function parseSchemaInput(schema: unknown) {
+  if (!schema) return null;
+  if (typeof schema === "string") {
+    const trimmed = schema.trim();
+    if (!trimmed) return null;
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return null;
+    }
+  }
+  if (typeof schema === "object") {
+    return schema;
+  }
+  return null;
+}
+
+function buildRequestFromSchema(schema: unknown, message: string, userIdentifier: string): Record<string, unknown> {
+  const parsed = parseSchemaInput(schema);
+  let placedMessage = false;
+  let placedUser = false;
+
+  const fillTemplate = (template: any): any => {
+    if (Array.isArray(template)) {
+      return template.map((item) => fillTemplate(item));
+    }
+    if (!template || typeof template !== "object") {
+      return template;
+    }
+
+    const copy: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(template)) {
+      const lower = key.toLowerCase();
+      if (typeof value === "string") {
+        if (lower.includes("prompt") || lower.includes("message") || lower.includes("query") || lower.includes("input")) {
+          placedMessage = true;
+          copy[key] = message;
+          continue;
+        }
+        if (lower.includes("user")) {
+          placedUser = true;
+          copy[key] = userIdentifier;
+          continue;
+        }
+      }
+      copy[key] = fillTemplate(value);
+    }
+    return copy;
+  };
+
+  const payload = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? fillTemplate(parsed) : {};
+
+  if (!placedMessage) {
+    (payload as Record<string, unknown>).message = message;
+  }
+  if (!placedUser) {
+    (payload as Record<string, unknown>).userId = userIdentifier;
+  }
+
+  return payload;
+}
+
+function safeParseJsonFromText(raw: string) {
+  const trimmed = String(raw ?? "").trim();
+  if (!trimmed) return null;
+
+  const codeFence = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  const candidate = (codeFence ? codeFence[1] : trimmed).trim();
+  if (!candidate) return null;
+
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    return null;
+  }
+}
+
+function extractChatText(payload: unknown) {
+  if (typeof payload === "string") return payload;
+  if (payload && typeof payload === "object") {
+    const candidate = (payload as Record<string, unknown>).text;
+    if (typeof candidate === "string") return candidate;
+  }
+  return "";
+}
+
+function normalizeConfidence(value: unknown) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return 0;
+  return Math.min(1, Math.max(0, num));
+}
+
+function computeSimilarArticles(segments: AnalyzerSegment[]): DraftDuplicateMatch[] {
+  const grouped = new Map<string, DraftDuplicateMatch>();
+
+  for (const segment of segments) {
+    const id = typeof segment.source_id === "string" ? segment.source_id.trim() : "";
+    if (!id) continue;
+
+    const confidence = normalizeConfidence(segment.confidence);
+    const title = typeof segment.source_title === "string" && segment.source_title.trim() ? segment.source_title : id;
+
+    const existing = grouped.get(id);
+    if (!existing) {
+      grouped.set(id, { id, title, confidence, segments: [segment] });
+      continue;
+    }
+
+    existing.confidence = Math.max(existing.confidence, confidence);
+    if ((!existing.title || existing.title === id) && title !== id) {
+      existing.title = title;
+    }
+    if (existing.segments.length < 3) {
+      existing.segments.push(segment);
+    }
+  }
+
+  return Array.from(grouped.values()).sort((a, b) => b.confidence - a.confidence);
+}
+
+function normalizeAnalyzerSegments(input: unknown): AnalyzerSegment[] {
+  if (!input || typeof input !== "object") return [];
+  const record = input as Record<string, unknown>;
+  const list = (record.segments ?? record.segment ?? record.items) as unknown;
+  if (!Array.isArray(list)) return [];
+
+  return list
+    .map<AnalyzerSegment | null>((entry) => {
+      if (!entry || typeof entry !== "object") return null;
+      const item = entry as Record<string, unknown>;
+      const segmentTextRaw = item.segment_text ?? item.text ?? item.segmentText ?? item.segment;
+      const segment_text = typeof segmentTextRaw === "string" ? segmentTextRaw : String(segmentTextRaw ?? "");
+
+      const sourceRaw = item.source_id ?? item.sourceId ?? item.source;
+      const source_id = typeof sourceRaw === "string" ? sourceRaw.trim() : null;
+
+      const titleRaw = item.source_title ?? item.sourceTitle ?? item.title;
+      const source_title =
+        titleRaw === null ? null : typeof titleRaw === "string" ? titleRaw : titleRaw ? String(titleRaw) : null;
+
+      const quoteRaw = item.supporting_quote ?? item.supportingQuote ?? item.quote;
+      const supporting_quote =
+        quoteRaw === null ? null : typeof quoteRaw === "string" ? quoteRaw : quoteRaw ? String(quoteRaw) : null;
+
+      const confidence = normalizeConfidence(item.confidence);
+
+      return {
+        segment_text,
+        source_id: source_id && source_id.length ? source_id : null,
+        source_title,
+        supporting_quote,
+        confidence,
+      };
+    })
+    .filter((entry): entry is AnalyzerSegment => entry !== null);
+}
+
 function pickString(value: unknown) {
   if (typeof value === "string") return value;
   if (typeof value === "number" || typeof value === "boolean") return String(value);
@@ -103,9 +311,12 @@ function deriveArticleTitle(articleObj: any) {
   const candidates = [
     pickNested(articleObj, ["fields", "Title"]),
     pickNested(articleObj, ["fields", "title"]),
+    articleObj?.Title,
     articleObj?.title,
     articleObj?.source_title,
+    articleObj?.sourceTitle,
     articleObj?.name,
+    articleObj?.Name,
   ];
 
   for (const candidate of candidates) {
@@ -119,9 +330,17 @@ function deriveArticleTitle(articleObj: any) {
 function deriveArticleContent(articleObj: any) {
   const candidates = [
     articleObj?.content,
+    articleObj?.Content,
+    articleObj?.content_markdown,
+    articleObj?.contentMarkdown,
+    articleObj?.markdown,
+    articleObj?.Markdown,
     articleObj?.body,
+    articleObj?.Body,
     articleObj?.article_body,
+    articleObj?.articleBody,
     articleObj?.text,
+    articleObj?.Text,
     pickNested(articleObj, ["fields", "Content"]),
     pickNested(articleObj, ["fields", "content"]),
     pickNested(articleObj, ["fields", "Body"]),
@@ -227,6 +446,9 @@ function extractCreatedId(payload: unknown): string | null {
 
 export function KbArticlesContent({ sessionId }: Props) {
   const { tokens, attributes, user, isLoading: userLoading, isAuthenticated } = useUser();
+  const [portalMounted, setPortalMounted] = useState(false);
+  const surprisePrompt =
+    "Based on the content of our current knowledge base, identify a gap or a high-value topic we haven't covered yet. valid suggestion for a new article. Provide ONLY the title and a 1-sentence summary. Do not include conversational filler.";
 
   const resolvedSessionId = useMemo(() => String(sessionId ?? "").trim(), [sessionId]);
   const derivedUserId = useMemo(
@@ -238,6 +460,14 @@ export function KbArticlesContent({ sessionId }: Props) {
       }),
     [attributes, user, tokens],
   );
+  const authHeader = useMemo(
+    () => buildBearerTokenFromTokens(tokens) ?? undefined,
+    [tokens?.accessToken, tokens?.idToken],
+  );
+
+  useEffect(() => {
+    setPortalMounted(true);
+  }, []);
 
   const [session, setSession] = useState<SessionRecord | null>(null);
   const [sessionLoading, setSessionLoading] = useState(false);
@@ -248,7 +478,7 @@ export function KbArticlesContent({ sessionId }: Props) {
     async function loadSession() {
       if (!resolvedSessionId) {
         setSession(null);
-        setSessionError("No session_id provided.");
+        setSessionError("No agent ID provided.");
         return;
       }
       if (!isAuthenticated) {
@@ -271,7 +501,7 @@ export function KbArticlesContent({ sessionId }: Props) {
         if (!active) return;
         if (!loaded) {
           setSession(null);
-          setSessionError("Session not found.");
+          setSessionError("Agent not found.");
           return;
         }
         setSession(loaded);
@@ -279,7 +509,7 @@ export function KbArticlesContent({ sessionId }: Props) {
         if (!active) return;
         console.error("[KbArticlesContent] Unable to load session", err);
         setSession(null);
-        setSessionError("Unable to load session configuration right now.");
+        setSessionError("Unable to load agent configuration right now.");
       } finally {
         if (active) {
           setSessionLoading(false);
@@ -300,6 +530,9 @@ export function KbArticlesContent({ sessionId }: Props) {
   const kbEndpoint = kbConnection.endpoint;
   const kbKeyName = kbConnection.keyName;
   const kbKeyValue = kbConnection.keyValue;
+  const chatEndpoint = String((session?.config as any)?.chat_api_endpoint ?? "").trim();
+  const chatKeyName = String((session?.config as any)?.chat_api_key_name ?? "x-api-key").trim() || "x-api-key";
+  const chatKeyValue = String((session?.config as any)?.chat_api_key ?? "").trim();
 
   const sessionLinkHref = resolvedSessionId ? `/session?id=${encodeURIComponent(resolvedSessionId)}` : "/";
   const sessionEditHref = resolvedSessionId ? `/session/edit?id=${encodeURIComponent(resolvedSessionId)}` : "/";
@@ -350,6 +583,7 @@ export function KbArticlesContent({ sessionId }: Props) {
           kbEndpoint,
           apiKeyName: kbKeyName,
           apiKeyValue: kbKeyValue,
+          authHeader,
           filters: resolvedFilters,
           signal: controller.signal,
         });
@@ -368,7 +602,7 @@ export function KbArticlesContent({ sessionId }: Props) {
         setLoading(false);
       }
     },
-    [kbEndpoint, kbKeyName, kbKeyValue],
+    [authHeader, kbEndpoint, kbKeyName, kbKeyValue],
   );
 
   const handleRefresh = useCallback(() => {
@@ -410,6 +644,8 @@ export function KbArticlesContent({ sessionId }: Props) {
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
+      createAbortRef.current?.abort();
+      editAbortRef.current?.abort();
     };
   }, []);
 
@@ -435,8 +671,28 @@ export function KbArticlesContent({ sessionId }: Props) {
   }, []);
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [createStep, setCreateStep] = useState<DraftWizardStep>("idea");
+  const [createIdea, setCreateIdea] = useState("");
+  const [createProcessingLabel, setCreateProcessingLabel] = useState<string>("");
+  const [createAnalyzerSegments, setCreateAnalyzerSegments] = useState<AnalyzerSegment[] | null>(null);
+  const [createMatches, setCreateMatches] = useState<DraftDuplicateMatch[]>([]);
+  const [createDraftMeta, setCreateDraftMeta] = useState<{
+    source_ids_and_titles_used: string[];
+    assumptions: string[];
+    open_questions: string[];
+  } | null>(null);
+  const [createDraftAnalysis, setCreateDraftAnalysis] = useState<{
+    segments: AnalyzerSegment[];
+    unsupported: AnalyzerSegment[];
+    flagged: boolean;
+  } | null>(null);
+  const [createDraftReviewConfirmed, setCreateDraftReviewConfirmed] = useState(false);
+  const [createDraftAnalyzing, setCreateDraftAnalyzing] = useState(false);
+  const [createAnalyzerFailed, setCreateAnalyzerFailed] = useState(false);
+  const [createSurpriseLoading, setCreateSurpriseLoading] = useState(false);
   const [createTitle, setCreateTitle] = useState("");
   const [createContent, setCreateContent] = useState("");
+  const [createAnalyzing, setCreateAnalyzing] = useState(false);
   const [createSaving, setCreateSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [createSuccess, setCreateSuccess] = useState<{ id: string | null } | null>(null);
@@ -454,24 +710,57 @@ export function KbArticlesContent({ sessionId }: Props) {
   const handleOpenCreate = useCallback(() => {
     setCreateError(null);
     setCreateSuccess(null);
+    setCreateStep("idea");
+    setCreateIdea("");
+    setCreateProcessingLabel("");
+    setCreateAnalyzerSegments(null);
+    setCreateMatches([]);
+    setCreateDraftMeta(null);
+    setCreateDraftAnalysis(null);
+    setCreateDraftReviewConfirmed(false);
+    setCreateDraftAnalyzing(false);
+    setCreateAnalyzerFailed(false);
+    setCreateSurpriseLoading(false);
     setCreateTitle("");
     setCreateContent("");
+    setCreateAnalyzing(false);
+    analyzerJobRef.current = null;
+    draftSupportJobRef.current = null;
     setCreateOpen(true);
   }, []);
 
+  const createAbortRef = useRef<AbortController | null>(null);
+  const analyzerJobRef = useRef<{ payloadKey: string; asyncJobId: string } | null>(null);
+  const draftSupportJobRef = useRef<{ payloadKey: string; asyncJobId: string } | null>(null);
+
   const handleCloseCreate = useCallback(() => {
-    if (createSaving) return;
+    if (createAnalyzing || createSaving) return;
+    createAbortRef.current?.abort();
     setCreateOpen(false);
     setCreateError(null);
-    setCreateSuccess(null);
-  }, [createSaving]);
+    setCreateStep("idea");
+    setCreateIdea("");
+    setCreateProcessingLabel("");
+    setCreateAnalyzerSegments(null);
+    setCreateMatches([]);
+    setCreateDraftMeta(null);
+    setCreateDraftAnalysis(null);
+    setCreateDraftReviewConfirmed(false);
+    setCreateDraftAnalyzing(false);
+    setCreateAnalyzerFailed(false);
+    setCreateSurpriseLoading(false);
+    setCreateTitle("");
+    setCreateContent("");
+    analyzerJobRef.current = null;
+    draftSupportJobRef.current = null;
+  }, [createAnalyzing, createSaving]);
 
   const editAbortRef = useRef<AbortController | null>(null);
 
   const loadEditArticle = useCallback(
     async (id: string) => {
       if (!sourceArticleEndpoint) {
-        setEditError("Knowledge Base endpoint is not configured for this session.");
+        setEditError("Knowledge Base endpoint is not configured for this agent.");
         return;
       }
 
@@ -487,6 +776,9 @@ export function KbArticlesContent({ sessionId }: Props) {
         };
         if (kbKeyValue) {
           headers[kbKeyName] = kbKeyValue;
+        }
+        if (authHeader) {
+          headers.Authorization = authHeader;
         }
 
         const url = new URL(sourceArticleEndpoint);
@@ -534,7 +826,7 @@ export function KbArticlesContent({ sessionId }: Props) {
         setEditLoading(false);
       }
     },
-    [kbKeyName, kbKeyValue, sourceArticleEndpoint],
+    [authHeader, kbKeyName, kbKeyValue, sourceArticleEndpoint],
   );
 
   const handleOpenEdit = useCallback(
@@ -563,7 +855,7 @@ export function KbArticlesContent({ sessionId }: Props) {
 
   const handleSaveEdit = useCallback(async () => {
     if (!sourceArticleEndpoint) {
-      setEditError("Knowledge Base endpoint is not configured for this session.");
+      setEditError("Knowledge Base endpoint is not configured for this agent.");
       return;
     }
     if (!editId) {
@@ -591,6 +883,9 @@ export function KbArticlesContent({ sessionId }: Props) {
       };
       if (kbKeyValue) {
         headers[kbKeyName] = kbKeyValue;
+      }
+      if (authHeader) {
+        headers.Authorization = authHeader;
       }
 
       const res = await fetch(sourceArticleEndpoint, {
@@ -620,6 +915,7 @@ export function KbArticlesContent({ sessionId }: Props) {
       setEditSaving(false);
     }
   }, [
+    authHeader,
     editContent,
     editId,
     editTitle,
@@ -631,9 +927,346 @@ export function KbArticlesContent({ sessionId }: Props) {
     sourceArticleEndpoint,
   ]);
 
+  const chatRequestSchema = (session?.config as any)?.chat_api_request_schema;
+  const chatUserId = derivedUserId || session?.user_id;
+
+  const sendChatAgentRequest = useCallback(
+    async ({
+      agent,
+      message,
+      signal,
+      asyncJobId,
+      onJobUpdate,
+    }: {
+      agent: string;
+      message: string;
+      signal: AbortSignal;
+      asyncJobId?: string;
+      onJobUpdate?: (job: AsyncJobResponse) => void;
+    }) => {
+      const endpoint = String(chatEndpoint ?? "").trim();
+      if (!endpoint) {
+        throw new Error("Chat API endpoint is not configured for this agent.");
+      }
+      const userIdentifier = String(chatUserId ?? "").trim();
+      if (!userIdentifier) {
+        throw new Error("Unable to resolve user identity.");
+      }
+
+      const headers: Record<string, string> = {
+        accept: "application/json",
+        "Content-Type": "application/json",
+      };
+      if (chatKeyValue) {
+        headers[chatKeyName] = chatKeyValue;
+      }
+      if (authHeader) {
+        headers.Authorization = authHeader;
+      }
+
+      const requestPayload = buildRequestFromSchema(chatRequestSchema, message, userIdentifier);
+      (requestPayload as Record<string, unknown>).llm = "gemini";
+      (requestPayload as Record<string, unknown>).agent = agent;
+      (requestPayload as Record<string, unknown>).user_id = userIdentifier;
+      if (!("userId" in requestPayload)) {
+        (requestPayload as Record<string, unknown>).userId = userIdentifier;
+      }
+      if (!("message" in requestPayload)) {
+        (requestPayload as Record<string, unknown>).message = message;
+      }
+
+      if (agent === "kb-analyzer") {
+        const resolvedJobId = String(asyncJobId ?? "").trim() || createUuidV4();
+        (requestPayload as Record<string, unknown>).async_job_id = resolvedJobId;
+      }
+
+      const started = await startChat({
+        endpoint,
+        headers,
+        body: requestPayload,
+        signal,
+      });
+
+      if (isAsyncJobResponse(started)) {
+        const completed = await pollChatJob({
+          chatEndpoint: endpoint,
+          initial: started,
+          headers,
+          signal,
+          onUpdate: onJobUpdate,
+        });
+
+        if (completed.result && typeof completed.result === "object") {
+          return completed.result as ChatSyncResponse;
+        }
+
+        throw new Error("Async analyzer job completed without a result payload.");
+      }
+
+      return started as ChatSyncResponse;
+    },
+    [authHeader, chatEndpoint, chatKeyName, chatKeyValue, chatRequestSchema, chatUserId],
+  );
+
+  const runCreatorDraft = useCallback(
+    async (idea: string, signal: AbortSignal) => {
+      const creatorMessage = [
+        "Create a new KB article.",
+        "",
+        "ARTICLE IDEA:",
+        idea,
+        "",
+        "If there are overlapping articles, make this draft clearly non-duplicative and non-conflicting (narrow scope, add references, or clarify what's different). Output JSON only.",
+      ].join("\n");
+
+      const payload = await sendChatAgentRequest({
+        agent: "kb-creator",
+        message: creatorMessage,
+        signal,
+      });
+
+      const rawText = extractChatText(payload);
+      const parsed = safeParseJsonFromText(rawText);
+      if (!parsed || typeof parsed !== "object") {
+        throw new Error("The KB creator did not return valid JSON.");
+      }
+
+      const record = parsed as Record<string, unknown>;
+      const title = typeof record.title === "string" ? record.title.trim() : "";
+      const content = typeof record.content === "string" ? record.content : "";
+      if (!title && !content) {
+        throw new Error("The KB creator response is missing title/content.");
+      }
+
+      const normalizeList = (value: unknown) => {
+        if (!Array.isArray(value)) return [];
+        return value
+          .map((entry) => (typeof entry === "string" ? entry.trim() : String(entry)))
+          .filter(Boolean);
+      };
+
+      return {
+        title,
+        content,
+        meta: {
+          source_ids_and_titles_used: normalizeList(record.source_ids_and_titles_used),
+          assumptions: normalizeList(record.assumptions),
+          open_questions: normalizeList(record.open_questions),
+        },
+      };
+    },
+    [sendChatAgentRequest],
+  );
+
+  const handleSurpriseMe = useCallback(async () => {
+    handleOpenCreate();
+    if (!chatEndpoint) {
+      setCreateError("Chat API endpoint is not configured for this agent.");
+      return;
+    }
+
+    createAbortRef.current?.abort();
+    const controller = new AbortController();
+    createAbortRef.current = controller;
+
+    setCreateError(null);
+    setCreateSurpriseLoading(true);
+    try {
+      const payload = await sendChatAgentRequest({
+        agent: "kb-expert",
+        message: surprisePrompt,
+        signal: controller.signal,
+      });
+
+      const suggestion = extractChatText(payload).trim();
+      if (!suggestion) {
+        throw new Error("No suggestion returned. Please try again.");
+      }
+      setCreateIdea(suggestion);
+    } catch (err) {
+      const name = (err as { name?: string } | null)?.name;
+      if (name === "AbortError" || controller.signal.aborted) {
+        return;
+      }
+      console.error("[KbArticlesContent] Surprise Me failed", err);
+      setCreateError(err instanceof Error && err.message ? err.message : "Unable to fetch a suggestion right now.");
+    } finally {
+      setCreateSurpriseLoading(false);
+    }
+  }, [chatEndpoint, handleOpenCreate, sendChatAgentRequest, surprisePrompt]);
+
+  const handleAnalyzeAndDraft = useCallback(async () => {
+    const idea = createIdea.trim();
+    if (!idea) {
+      setCreateError("Please describe the article idea first.");
+      setCreateStep("idea");
+      return;
+    }
+    if (!chatEndpoint) {
+      setCreateError("Chat API endpoint is not configured for this agent.");
+      setCreateStep("idea");
+      return;
+    }
+
+    const analyzerMessage = [
+      "ARTICLE IDEA:",
+      idea,
+      "",
+      "(Write the idea in multiple sentences or bullet points so each claim can be matched.)",
+    ].join("\n");
+    const payloadKey = analyzerMessage;
+    const reuseJob = !createAnalyzerFailed && analyzerJobRef.current?.payloadKey === payloadKey;
+    const asyncJobId = reuseJob ? analyzerJobRef.current!.asyncJobId : createUuidV4();
+    analyzerJobRef.current = { payloadKey, asyncJobId };
+
+    createAbortRef.current?.abort();
+    const controller = new AbortController();
+    createAbortRef.current = controller;
+
+    setCreateError(null);
+    setCreateAnalyzerFailed(false);
+    setCreateMatches([]);
+    setCreateTitle("");
+    setCreateContent("");
+    setCreateDraftMeta(null);
+    setCreateDraftAnalysis(null);
+    setCreateDraftReviewConfirmed(false);
+    setCreateAnalyzerSegments(null);
+    setCreateAnalyzing(true);
+    setCreateProcessingLabel("Thinking about duplicates & conflicts...");
+    setCreateStep("processing");
+
+    try {
+      const analyzerPayload = await sendChatAgentRequest({
+        agent: "kb-analyzer",
+        message: analyzerMessage,
+        signal: controller.signal,
+        asyncJobId,
+        onJobUpdate: (job) => {
+          const status = String(job.status ?? "").toUpperCase();
+          if (status === "FAILED") {
+            setCreateAnalyzerFailed(true);
+          }
+          if (status === "RETRY") {
+            setCreateProcessingLabel("Still thinking...");
+            return;
+          }
+          if (status === "PENDING") {
+            setCreateProcessingLabel("Queued... thinking...");
+            return;
+          }
+          setCreateProcessingLabel("Thinking...");
+        },
+      });
+
+      const analyzerText = extractChatText(analyzerPayload);
+      const analyzerJson = safeParseJsonFromText(analyzerText);
+      if (!analyzerJson) {
+        throw new Error("The analyzer response was not valid JSON.");
+      }
+
+      const segments = normalizeAnalyzerSegments(analyzerJson);
+      setCreateAnalyzerSegments(segments);
+      const matches = computeSimilarArticles(segments).filter(
+        (match) => match.confidence >= ANALYZER_CONFIDENCE_THRESHOLD,
+      );
+
+      if (matches.length > 0) {
+        setCreateMatches(matches);
+        setCreateStep("decision");
+        return;
+      }
+
+      setCreateProcessingLabel("Drafting a new knowledge base article...");
+      const drafted = await runCreatorDraft(idea, controller.signal);
+      setCreateTitle(drafted.title);
+      setCreateContent(drafted.content);
+      setCreateDraftMeta(drafted.meta);
+      setCreateStep("editor");
+    } catch (err) {
+      const name = (err as { name?: string } | null)?.name;
+      if (name === "AbortError" || controller.signal.aborted) {
+        return;
+      }
+      console.error("[KbArticlesContent] Smart draft wizard failed", err);
+      setCreateError(err instanceof Error && err.message ? err.message : "Unable to draft an article right now.");
+      setCreateStep("idea");
+    } finally {
+      setCreateAnalyzing(false);
+      setCreateProcessingLabel("");
+    }
+  }, [
+    chatEndpoint,
+    createAnalyzerFailed,
+    createIdea,
+    runCreatorDraft,
+    sendChatAgentRequest,
+  ]);
+
+  const handleIgnoreDuplicates = useCallback(async () => {
+    const idea = createIdea.trim();
+    if (!idea) {
+      setCreateError("Please describe the article idea first.");
+      setCreateStep("idea");
+      return;
+    }
+
+    createAbortRef.current?.abort();
+    const controller = new AbortController();
+    createAbortRef.current = controller;
+
+    setCreateError(null);
+    setCreateDraftMeta(null);
+    setCreateDraftAnalysis(null);
+    setCreateDraftReviewConfirmed(false);
+    setCreateAnalyzing(true);
+    setCreateProcessingLabel("Drafting a new knowledge base article...");
+    setCreateStep("processing");
+
+    try {
+      const drafted = await runCreatorDraft(idea, controller.signal);
+      setCreateTitle(drafted.title);
+      setCreateContent(drafted.content);
+      setCreateDraftMeta(drafted.meta);
+      setCreateStep("editor");
+    } catch (err) {
+      const name = (err as { name?: string } | null)?.name;
+      if (name === "AbortError" || controller.signal.aborted) {
+        return;
+      }
+      console.error("[KbArticlesContent] kb-creator failed", err);
+      setCreateError(err instanceof Error && err.message ? err.message : "Unable to draft an article right now.");
+      setCreateStep("decision");
+    } finally {
+      setCreateAnalyzing(false);
+      setCreateProcessingLabel("");
+    }
+  }, [createIdea, runCreatorDraft]);
+
+  const handleEditDuplicate = useCallback(
+    (matchId: string) => {
+      const resolvedId = String(matchId ?? "").trim();
+      if (!resolvedId) return;
+      createAbortRef.current?.abort();
+      setCreateOpen(false);
+      setCreateError(null);
+      setCreateStep("idea");
+      setCreateIdea("");
+      setCreateMatches([]);
+      setCreateAnalyzerSegments(null);
+      setCreateDraftMeta(null);
+      setCreateDraftAnalysis(null);
+      setCreateDraftReviewConfirmed(false);
+      setCreateTitle("");
+      setCreateContent("");
+      handleOpenEdit(resolvedId);
+    },
+    [handleOpenEdit],
+  );
+
   const handleCreate = useCallback(async () => {
     if (!sourceArticleEndpoint) {
-      setCreateError("Knowledge Base endpoint is not configured for this session.");
+      setCreateError("Knowledge Base endpoint is not configured for this agent.");
       return;
     }
 
@@ -645,6 +1278,10 @@ export function KbArticlesContent({ sessionId }: Props) {
     }
     if (!content) {
       setCreateError("Content is required.");
+      return;
+    }
+    if (createDraftAnalysis?.flagged && !createDraftReviewConfirmed) {
+      setCreateError("Please review the unsupported segments and confirm before saving.");
       return;
     }
 
@@ -684,7 +1321,10 @@ export function KbArticlesContent({ sessionId }: Props) {
       setCreateSaving(false);
     }
   }, [
+    authHeader,
     createContent,
+    createDraftAnalysis,
+    createDraftReviewConfirmed,
     createTitle,
     filters,
     kbKeyName,
@@ -693,11 +1333,76 @@ export function KbArticlesContent({ sessionId }: Props) {
     sourceArticleEndpoint,
   ]);
 
+  const handleAnalyzeDraftSupport = useCallback(async () => {
+    const draftContent = createContent.trim();
+    if (!draftContent) {
+      setCreateError("Draft content is required to run the support check.");
+      return;
+    }
+    if (!chatEndpoint) {
+      setCreateError("Chat API endpoint is not configured for this agent.");
+      return;
+    }
+
+    const payloadKey = draftContent;
+    const reuseJob = draftSupportJobRef.current?.payloadKey === payloadKey;
+    const asyncJobId = reuseJob ? draftSupportJobRef.current!.asyncJobId : createUuidV4();
+    draftSupportJobRef.current = { payloadKey, asyncJobId };
+
+    createAbortRef.current?.abort();
+    const controller = new AbortController();
+    createAbortRef.current = controller;
+
+    setCreateError(null);
+    setCreateDraftAnalyzing(true);
+    try {
+      const payload = await sendChatAgentRequest({
+        agent: "kb-analyzer",
+        message: draftContent,
+        signal: controller.signal,
+        asyncJobId,
+      });
+
+      const analyzerText = extractChatText(payload);
+      const analyzerJson = safeParseJsonFromText(analyzerText);
+      if (!analyzerJson) {
+        throw new Error("The analyzer response was not valid JSON.");
+      }
+
+      const segments = normalizeAnalyzerSegments(analyzerJson);
+      const unsupported = segments.filter(
+        (segment) =>
+          !segment.source_id ||
+          normalizeConfidence(segment.confidence) < ANALYZER_CONFIDENCE_THRESHOLD,
+      );
+
+      const totalSegments = segments.length;
+      const unsupportedCount = unsupported.length;
+      const ratio = totalSegments ? unsupportedCount / totalSegments : 0;
+      const minUnsupported = totalSegments <= 1 ? 1 : 2;
+      const flagged = totalSegments > 0 && ratio >= 0.25 && unsupportedCount >= minUnsupported;
+
+      setCreateDraftAnalysis({ segments, unsupported, flagged });
+      setCreateDraftReviewConfirmed(false);
+    } catch (err) {
+      const name = (err as { name?: string } | null)?.name;
+      if (name === "AbortError" || controller.signal.aborted) {
+        return;
+      }
+      console.error("[KbArticlesContent] Draft support check failed", err);
+      setCreateError(
+        err instanceof Error && err.message ? err.message : "Unable to analyze this draft right now.",
+      );
+    } finally {
+      setCreateDraftAnalyzing(false);
+    }
+  }, [chatEndpoint, createContent, sendChatAgentRequest]);
+
   if (sessionLoading || userLoading) {
     return (
       <div className="flex items-center gap-2 text-sm text-dark-5 dark:text-dark-6">
         <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-primary border-t-transparent" />
-        Loading session settings...
+        Loading agent settings...
       </div>
     );
   }
@@ -717,14 +1422,14 @@ export function KbArticlesContent({ sessionId }: Props) {
           <div>
             <h3 className="text-lg font-semibold text-dark dark:text-white">Knowledgebase Articles</h3>
             <p className="mt-1 text-sm text-dark-5 dark:text-dark-6">
-              Agent KB endpoint is not configured for this session.
+              Agent KB endpoint is not configured for this agent.
             </p>
           </div>
           <Link
             href={sessionEditHref}
             className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90"
           >
-            Configure Session
+            Configure Agent
           </Link>
         </div>
       </div>
@@ -737,7 +1442,7 @@ export function KbArticlesContent({ sessionId }: Props) {
         <div>
           <h2 className="text-lg font-semibold text-dark dark:text-white">Knowledgebase Articles</h2>
           <div className="mt-1 text-sm text-dark-5 dark:text-dark-6">
-            Session:{" "}
+            Agent:{" "}
             <Link href={sessionLinkHref} className="font-semibold text-primary hover:underline">
               {session?.name ?? resolvedSessionId}
             </Link>
@@ -752,7 +1457,7 @@ export function KbArticlesContent({ sessionId }: Props) {
             href={sessionLinkHref}
             className="rounded-lg border border-stroke px-4 py-2 text-xs font-semibold uppercase tracking-wide text-dark transition hover:bg-gray-2 dark:border-dark-3 dark:text-white dark:hover:bg-dark-2"
           >
-            Back to Session
+            Back to Agent
           </Link>
           <button
             type="button"
@@ -768,6 +1473,13 @@ export function KbArticlesContent({ sessionId }: Props) {
             className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90"
           >
             Add New
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleSurpriseMe()}
+            className="rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-primary transition hover:bg-primary/20 dark:border-primary/40 dark:bg-primary/10 dark:text-primary"
+          >
+            Surprise Me
           </button>
         </div>
       </div>
@@ -951,112 +1663,446 @@ export function KbArticlesContent({ sessionId }: Props) {
       </div>
 
       {createOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-dark/70 p-4"
-          role="dialog"
-          aria-modal="true"
-          onClick={handleCloseCreate}
-        >
-          <div
-            className="w-full max-w-3xl rounded-xl bg-white p-5 shadow-2xl dark:bg-dark-2"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold text-dark dark:text-white">Add Knowledge Base Article</div>
-                <div className="mt-1 text-xs text-dark-5 dark:text-dark-6">
-                  Create a new source article for this session&apos;s knowledge base.
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleCloseCreate}
-                className="rounded-lg border border-stroke px-3 py-1 text-xs font-semibold text-dark transition hover:bg-gray-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:text-white dark:hover:bg-dark-3"
-                disabled={createSaving}
+        portalMounted ? (
+          createPortal(
+            <div
+              className="fixed inset-0 z-[9999] flex items-center justify-center bg-dark/70 p-4"
+              role="dialog"
+              aria-modal="true"
+              onClick={handleCloseCreate}
+            >
+              <div
+                className="w-full max-w-3xl rounded-xl bg-white p-5 shadow-2xl dark:bg-dark-2"
+                onClick={(e) => e.stopPropagation()}
               >
-                Close
-              </button>
-            </div>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-dark dark:text-white">Smart Draft Wizard</div>
+                    <div className="mt-1 text-xs text-dark-5 dark:text-dark-6">
+                      Draft a new knowledge base article, check for duplicates, then save.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCloseCreate}
+                    className="rounded-lg border border-stroke px-3 py-1 text-xs font-semibold text-dark transition hover:bg-gray-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:text-white dark:hover:bg-dark-3"
+                    disabled={createAnalyzing || createSaving}
+                  >
+                    Close
+                  </button>
+                </div>
 
-            <div className="mt-4">
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
-                Title
-              </label>
-              <input
-                value={createTitle}
-                onChange={(e) => setCreateTitle(e.target.value)}
-                className="w-full rounded-lg border border-stroke bg-white px-3 py-2 text-sm text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-                placeholder="Article title"
-                disabled={createSaving}
-              />
-            </div>
+                {createStep === "idea" ? (
+                  <div className="mt-4">
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                      Article Idea
+                    </label>
+                    {createSurpriseLoading ? (
+                      <div className="mb-2 flex items-center gap-2 text-xs text-dark-5 dark:text-dark-6">
+                        <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-solid border-primary border-t-transparent" />
+                        Finding a high-value topic to draft...
+                      </div>
+                    ) : null}
+                    <textarea
+                      value={createIdea}
+                      onChange={(e) => {
+                        setCreateIdea(e.target.value);
+                        setCreateError(null);
+                        setCreateAnalyzerFailed(false);
+                        analyzerJobRef.current = null;
+                      }}
+                      className="custom-scrollbar h-40 w-full resize-none rounded-lg border border-stroke bg-white px-3 py-2 text-sm text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                      placeholder='Describe what this article should cover... (e.g., "How to replace the CO2 cylinder for Quooker CUBE in UAE")'
+                      disabled={createSurpriseLoading || createAnalyzing || createSaving}
+                    />
 
-            <div className="mt-4">
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
-                Content
-              </label>
-              <textarea
-                value={createContent}
-                onChange={(e) => setCreateContent(e.target.value)}
-                className="custom-scrollbar h-80 w-full resize-none rounded-lg border border-stroke bg-white px-3 py-2 text-sm text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-                placeholder="Write the article content (Markdown is supported)."
-                disabled={createSaving}
-              />
-            </div>
+                    {createError ? (
+                      <div className="mt-3 rounded-lg border border-red-200 bg-red-light-5 px-3 py-2 text-sm text-red shadow-sm">
+                        {createError}
+                      </div>
+                    ) : null}
 
-            {createError ? (
-              <div className="mt-3 rounded-lg border border-red-200 bg-red-light-5 px-3 py-2 text-sm text-red shadow-sm">
-                {createError}
+                    <div className="mt-4 flex flex-wrap justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={handleCloseCreate}
+                        className="rounded-lg border border-stroke px-4 py-2 text-xs font-semibold uppercase tracking-wide text-dark transition hover:bg-gray-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:text-white dark:hover:bg-dark-3"
+                        disabled={createAnalyzing || createSaving}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleAnalyzeAndDraft()}
+                        className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={createSurpriseLoading || createAnalyzing || createSaving || !createIdea.trim()}
+                      >
+                        {createAnalyzerFailed ? "Try Again" : "Draft"}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+            {createStep === "processing" ? (
+              <div className="mt-6 flex flex-col items-center gap-4 text-center">
+                <span className="inline-block h-10 w-10 animate-spin rounded-full border-2 border-solid border-primary border-t-transparent" />
+                <div className="text-sm font-semibold text-dark dark:text-white">
+                  {createProcessingLabel || "Working on it..."}
+                </div>
+                <div className="text-xs text-dark-5 dark:text-dark-6">This may take up to a minute.</div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    createAbortRef.current?.abort();
+                    setCreateAnalyzing(false);
+                    setCreateError(null);
+                    setCreateProcessingLabel("");
+                    setCreateStep("idea");
+                  }}
+                  className="rounded-lg border border-stroke px-4 py-2 text-xs font-semibold uppercase tracking-wide text-dark transition hover:bg-gray-2 dark:border-dark-3 dark:text-white dark:hover:bg-dark-3"
+                >
+                  Cancel
+                </button>
               </div>
             ) : null}
 
-            <div className="mt-4 flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                onClick={handleCloseCreate}
-                className="rounded-lg border border-stroke px-4 py-2 text-xs font-semibold uppercase tracking-wide text-dark transition hover:bg-gray-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:text-white dark:hover:bg-dark-3"
-                disabled={createSaving}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleCreate()}
-                className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={createSaving}
-              >
-                {createSaving ? "Creating..." : "Create"}
-              </button>
-            </div>
-          </div>
-        </div>
+            {createStep === "decision" ? (
+              <div className="mt-4 space-y-3">
+                <div className="rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-900 dark:border-yellow-900/40 dark:bg-yellow-950/20 dark:text-yellow-100">
+                  Similar articles found:
+                </div>
+
+                <div className="space-y-2">
+                  {createMatches.map((match) => (
+                    <div
+                      key={match.id}
+                      className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-stroke bg-white px-3 py-3 text-sm shadow-sm dark:border-dark-3 dark:bg-dark-2"
+                    >
+                      <div className="min-w-[220px] flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="font-semibold text-dark dark:text-white">{match.title}</div>
+                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                            {(match.confidence * 10).toFixed(1)}/10
+                          </span>
+                        </div>
+                        {match.segments.length ? (
+                          <div className="mt-2 space-y-2 text-xs text-dark-5 dark:text-dark-6">
+                            {match.segments.map((segment, idx) => (
+                              <div
+                                key={`${match.id}-${idx}`}
+                                className="rounded-md bg-gray-2 px-2 py-2 dark:bg-dark-3"
+                              >
+                                <div className="whitespace-pre-wrap">{segment.segment_text}</div>
+                                {segment.supporting_quote ? (
+                                  <div className="mt-1 border-l-2 border-primary/40 pl-2 text-[11px] text-dark-6 dark:text-dark-7">
+                                    {segment.supporting_quote}
+                                  </div>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleEditDuplicate(match.id)}
+                        className="rounded-lg border border-stroke px-3 py-2 text-xs font-semibold uppercase tracking-wide text-dark transition hover:bg-gray-2 dark:border-dark-3 dark:text-white dark:hover:bg-dark-3"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {createError ? (
+                  <div className="rounded-lg border border-red-200 bg-red-light-5 px-3 py-2 text-sm text-red shadow-sm">
+                    {createError}
+                  </div>
+                ) : null}
+
+                <div className="mt-2 flex flex-wrap justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCreateStep("idea")}
+                    className="rounded-lg border border-stroke px-4 py-2 text-xs font-semibold uppercase tracking-wide text-dark transition hover:bg-gray-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:text-white dark:hover:bg-dark-3"
+                    disabled={createAnalyzing || createSaving}
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleIgnoreDuplicates}
+                    className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={createAnalyzing || createSaving}
+                  >
+                    Ignore &amp; Create New
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {createStep === "editor" ? (
+              <div className="mt-4">
+                <div>
+                  <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                    Title
+                  </label>
+                  <input
+                    value={createTitle}
+                    onChange={(e) => setCreateTitle(e.target.value)}
+                    className="w-full rounded-lg border border-stroke bg-white px-3 py-2 text-sm text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                    placeholder="Article title"
+                    disabled={createSaving}
+                  />
+                </div>
+
+                <div className="mt-4">
+                  <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                    Content
+                  </label>
+                  <textarea
+                    value={createContent}
+                    onChange={(e) => {
+                      setCreateContent(e.target.value);
+                      if (createDraftAnalysis) {
+                        setCreateDraftAnalysis(null);
+                        setCreateDraftReviewConfirmed(false);
+                      }
+                    }}
+                    className="custom-scrollbar h-80 w-full resize-none rounded-lg border border-stroke bg-white px-3 py-2 text-sm text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                    placeholder="Review and refine the draft (Markdown is supported)."
+                    disabled={createSaving}
+                  />
+                </div>
+
+                <div className="mt-4 rounded-lg border border-stroke bg-gray-2/40 p-4 dark:border-dark-3 dark:bg-dark-3/30">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                        Draft Insights
+                      </div>
+                      <div className="mt-1 text-xs text-dark-5 dark:text-dark-6">
+                        Review sources, assumptions, open questions, and run a support check before saving.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleAnalyzeDraftSupport()}
+                      className="rounded-lg border border-stroke bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-dark transition hover:bg-gray-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:bg-dark-2 dark:text-white dark:hover:bg-dark-3"
+                      disabled={createSaving || createDraftAnalyzing || !createContent.trim()}
+                    >
+                      {createDraftAnalyzing
+                        ? "Checking..."
+                        : createDraftAnalysis
+                          ? "Re-check Support"
+                          : "Check Support"}
+                    </button>
+                  </div>
+
+                  {createDraftAnalysis ? (
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                          Segments
+                        </div>
+                        <div className="mt-1 text-lg font-semibold text-dark dark:text-white">
+                          {createDraftAnalysis.segments.length}
+                        </div>
+                      </div>
+                      <div className="rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                          Supported
+                        </div>
+                        <div className="mt-1 text-lg font-semibold text-dark dark:text-white">
+                          {Math.max(0, createDraftAnalysis.segments.length - createDraftAnalysis.unsupported.length)}
+                        </div>
+                      </div>
+                      <div className="rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                          Unsupported
+                        </div>
+                        <div className="mt-1 text-lg font-semibold text-dark dark:text-white">
+                          {createDraftAnalysis.unsupported.length}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-4 text-xs text-dark-5 dark:text-dark-6">
+                      Support check not run yet. Click “Check Support” to see which claims map back to existing KB
+                      articles.
+                    </div>
+                  )}
+
+                  {createDraftAnalysis && createDraftAnalysis.unsupported.length ? (
+                    <div className="mt-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                        Unsupported / low-confidence segments
+                      </div>
+                      <div className="custom-scrollbar mt-2 max-h-44 space-y-2 overflow-auto pr-1">
+                        {createDraftAnalysis.unsupported.map((segment, idx) => (
+                          <div
+                            key={`unsupported-${idx}`}
+                            className="rounded-md border border-stroke bg-white px-3 py-2 text-xs text-dark shadow-sm dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                          >
+                            <div className="whitespace-pre-wrap">{segment.segment_text}</div>
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-dark-5 dark:text-dark-6">
+                              <span>Confidence: {(normalizeConfidence(segment.confidence) * 10).toFixed(1)}/10</span>
+                              {segment.source_title ? <span>Source: {segment.source_title}</span> : <span>No match</span>}
+                            </div>
+                            {segment.supporting_quote ? (
+                              <div className="mt-2 border-l-2 border-primary/40 pl-2 text-[11px] text-dark-6 dark:text-dark-7">
+                                {segment.supporting_quote}
+                              </div>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {createDraftAnalysis?.flagged ? (
+                    <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-900 dark:border-yellow-900/40 dark:bg-yellow-950/20 dark:text-yellow-100">
+                      Several segments could not be confidently matched to existing KB articles. Review carefully before
+                      saving.
+                    </div>
+                  ) : null}
+
+                  {createDraftAnalysis?.flagged ? (
+                    <label className="mt-3 flex items-start gap-2 text-xs text-dark-5 dark:text-dark-6">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 rounded border-stroke text-primary focus:ring-primary dark:border-dark-3"
+                        checked={createDraftReviewConfirmed}
+                        onChange={(e) => setCreateDraftReviewConfirmed(e.target.checked)}
+                      />
+                      <span>I reviewed the unsupported segments and want to save this draft anyway.</span>
+                    </label>
+                  ) : null}
+
+                  {createDraftMeta ? (
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                          Sources Used
+                        </div>
+                        {createDraftMeta.source_ids_and_titles_used.length ? (
+                          <ul className="mt-2 space-y-1 text-xs text-dark dark:text-white">
+                            {createDraftMeta.source_ids_and_titles_used.map((entry, idx) => (
+                              <li key={`src-${idx}`} className="break-words">
+                                {entry}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div className="mt-2 text-xs text-dark-5 dark:text-dark-6">No sources returned.</div>
+                        )}
+                      </div>
+                      <div className="rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                          Assumptions
+                        </div>
+                        {createDraftMeta.assumptions.length ? (
+                          <ul className="mt-2 space-y-1 text-xs text-dark dark:text-white">
+                            {createDraftMeta.assumptions.map((entry, idx) => (
+                              <li key={`asm-${idx}`} className="break-words">
+                                {entry}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div className="mt-2 text-xs text-dark-5 dark:text-dark-6">No assumptions returned.</div>
+                        )}
+                      </div>
+                      <div className="rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                          Open Questions
+                        </div>
+                        {createDraftMeta.open_questions.length ? (
+                          <ul className="mt-2 space-y-1 text-xs text-dark dark:text-white">
+                            {createDraftMeta.open_questions.map((entry, idx) => (
+                              <li key={`oq-${idx}`} className="break-words">
+                                {entry}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div className="mt-2 text-xs text-dark-5 dark:text-dark-6">No open questions returned.</div>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                {createError ? (
+                  <div className="mt-3 rounded-lg border border-red-200 bg-red-light-5 px-3 py-2 text-sm text-red shadow-sm">
+                    {createError}
+                  </div>
+                ) : null}
+
+                <div className="mt-4 flex flex-wrap justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCreateStep(createMatches.length ? "decision" : "idea")}
+                    className="rounded-lg border border-stroke px-4 py-2 text-xs font-semibold uppercase tracking-wide text-dark transition hover:bg-gray-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:text-white dark:hover:bg-dark-3"
+                    disabled={createSaving}
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleCreate()}
+                    className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={
+                      createSaving ||
+                      createDraftAnalyzing ||
+                      (createDraftAnalysis?.flagged && !createDraftReviewConfirmed)
+                    }
+                  >
+                    {createSaving
+                      ? "Saving..."
+                      : createDraftAnalysis?.flagged && !createDraftReviewConfirmed
+                        ? "Review to Save"
+                        : "Save"}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+              </div>
+            </div>,
+            document.body,
+          )
+        ) : null
       ) : null}
 
       {editOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-dark/70 p-4"
-          role="dialog"
-          aria-modal="true"
-          onClick={handleCloseEdit}
-        >
-          <div
-            className="w-full max-w-4xl rounded-xl bg-white p-5 shadow-2xl dark:bg-dark-2"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold text-dark dark:text-white">Edit Knowledge Base Article</div>
-                <div className="mt-1 text-xs text-dark-5 dark:text-dark-6">Update the article and save to publish.</div>
-              </div>
-              <button
-                type="button"
-                onClick={handleCloseEdit}
-                className="rounded-lg border border-stroke px-3 py-1 text-xs font-semibold text-dark transition hover:bg-gray-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:text-white dark:hover:bg-dark-3"
-                disabled={editSaving}
+        portalMounted ? (
+          createPortal(
+            <div
+              className="fixed inset-0 z-[9999] flex items-center justify-center bg-dark/70 p-4"
+              role="dialog"
+              aria-modal="true"
+              onClick={handleCloseEdit}
+            >
+              <div
+                className="w-full max-w-4xl rounded-xl bg-white p-5 shadow-2xl dark:bg-dark-2"
+                onClick={(e) => e.stopPropagation()}
               >
-                Close
-              </button>
-            </div>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-dark dark:text-white">Edit Knowledge Base Article</div>
+                    <div className="mt-1 text-xs text-dark-5 dark:text-dark-6">
+                      Update the article and save to publish.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCloseEdit}
+                    className="rounded-lg border border-stroke px-3 py-1 text-xs font-semibold text-dark transition hover:bg-gray-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:text-white dark:hover:bg-dark-3"
+                    disabled={editSaving}
+                  >
+                    Close
+                  </button>
+                </div>
 
             {editLoading ? (
               <div className="mt-4 flex items-center gap-2 text-sm text-dark-5 dark:text-dark-6">
@@ -1115,8 +2161,11 @@ export function KbArticlesContent({ sessionId }: Props) {
                 {editSaving ? "Saving..." : "Save"}
               </button>
             </div>
-          </div>
-        </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        ) : null
       ) : null}
     </>
   );

@@ -6,7 +6,16 @@ import SendIcon from "@/assets/icons/SendIcon";
 import { useSearchParams } from "next/navigation";
 import { fetchAuthSession, getCurrentUser } from "aws-amplify/auth";
 import { fetchSessionDetail, type SessionConfig } from "@/services/sessions";
+import {
+  isAsyncJobResponse,
+  pollChatJob,
+  startChat,
+  type AsyncJobResponse,
+  type ChatSyncResponse,
+} from "@/services/chat-async-jobs";
 import { recordUserWalletUsage } from "@/services/user-wallet";
+import { useUser } from "@/contexts/user-context";
+import { buildBearerTokenFromTokens } from "@/lib/auth-headers";
 import ReactMarkdown, { type Components as MarkdownComponents } from "react-markdown";
 import {
   Children,
@@ -36,10 +45,26 @@ type ChatMessage = {
   usageMetadata?: UsageMetadata | null;
 };
 
+type ChatSeedMessage = {
+  text: string;
+  sender?: Sender;
+  suggestions?: string[];
+};
+
 type SourceSegment = {
   text: string;
   source_id: string | null;
   source_title?: string | null;
+};
+
+type KbAnalyzerResponsePayload = {
+  segments?: Array<{
+    segment_text?: string;
+    source_id?: string | null;
+    source_title?: string | null;
+    [key: string]: unknown;
+  }>;
+  [key: string]: unknown;
 };
 
 type SourceModalState =
@@ -464,6 +489,10 @@ const API_ENDPOINT =
   "https://vwiy6y0d3b.execute-api.ap-southeast-1.amazonaws.com/Prod/chat";
 
 const TRAIN_LLM_TOKEN_COST = 50_000;
+const TRAIN_LLM_KB_EXPERT_COMMAND = "update-kb-expert-knowledgE";
+const KB_EXPERT_PREFIX = "kbexpert:";
+const KB_EXPERT_AGENT = "kb-expert";
+const KB_ANALYZER_AGENT = "kb-analyzer";
 
 function createId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -614,6 +643,88 @@ function buildRequestFromSchema(
   }
 
   return payload;
+}
+
+function safeParseJsonFromText(raw: string) {
+  const trimmed = String(raw ?? "").trim();
+  if (!trimmed) return null;
+
+  const codeFence = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  const candidate = (codeFence ? codeFence[1] : trimmed).trim();
+  if (!candidate) return null;
+
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    return null;
+  }
+}
+
+function mergeAdjacentSegments(segments: SourceSegment[]) {
+  const merged: SourceSegment[] = [];
+
+  for (const segment of segments) {
+    if (!segment.text) continue;
+    const previous = merged[merged.length - 1];
+    if (
+      previous &&
+      previous.source_id === segment.source_id &&
+      (previous.source_title ?? null) === (segment.source_title ?? null)
+    ) {
+      previous.text += segment.text;
+      continue;
+    }
+
+    merged.push({ ...segment });
+  }
+
+  return merged;
+}
+
+function normalizeKbAnalyzerSegments(fullText: string, payload: KbAnalyzerResponsePayload): SourceSegment[] {
+  const rawSegments = Array.isArray(payload?.segments) ? payload.segments : [];
+  const normalized = rawSegments
+    .filter((segment) => segment && typeof segment === "object")
+    .map((segment) => {
+      const segmentText = typeof segment.segment_text === "string" ? segment.segment_text : "";
+      const sourceId =
+        segment.source_id === null || typeof segment.source_id === "string" ? segment.source_id : null;
+      const sourceTitle = typeof segment.source_title === "string" ? segment.source_title : null;
+
+      return {
+        text: segmentText,
+        source_id: sourceId && sourceId.trim() ? sourceId.trim() : null,
+        source_title: sourceTitle && sourceTitle.trim() ? sourceTitle.trim() : null,
+      } satisfies SourceSegment;
+    })
+    .filter((segment) => segment.text.length > 0);
+
+  if (!normalized.length || !fullText) {
+    return normalized;
+  }
+
+  const stitched: SourceSegment[] = [];
+  let cursor = 0;
+
+  for (const segment of normalized) {
+    const matchIndex = fullText.indexOf(segment.text, cursor);
+    if (matchIndex === -1) {
+      continue;
+    }
+
+    if (matchIndex > cursor) {
+      stitched.push({ text: fullText.slice(cursor, matchIndex), source_id: null, source_title: null });
+    }
+
+    stitched.push(segment);
+    cursor = matchIndex + segment.text.length;
+  }
+
+  if (cursor < fullText.length) {
+    stitched.push({ text: fullText.slice(cursor), source_id: null, source_title: null });
+  }
+
+  return mergeAdjacentSegments(stitched).filter((segment) => segment.text.length > 0);
 }
 
 function findFirstStringForKeys(body: unknown, keys: string[]): string | undefined {
@@ -771,6 +882,11 @@ type ChatInterfaceProps = {
   cardOnly?: boolean;
   enableAttribution?: boolean;
   showTrainButton?: boolean;
+  headerTitle?: string;
+  headerSubtitle?: string;
+  variant?: "card" | "bleed";
+  initialMessages?: ChatSeedMessage[];
+  showAuthCta?: boolean;
 };
 
 export function ChatInterface({
@@ -778,12 +894,27 @@ export function ChatInterface({
   cardOnly = false,
   enableAttribution = false,
   showTrainButton = false,
+  headerTitle,
+  headerSubtitle,
+  variant = "card",
+  initialMessages,
+  showAuthCta = false,
 }: ChatInterfaceProps) {
   const searchParams = useSearchParams();
+  const { tokens, isAuthenticated, isLoading: authLoading } = useUser();
   const sessionId = searchParams?.get("session_id");
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: "initial", text: "Hi! How can I help you today?", sender: "bot" },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    if (initialMessages?.length) {
+      return initialMessages.map((message) => ({
+        id: createId(),
+        text: message.text,
+        sender: message.sender ?? "bot",
+        ...(message.suggestions ? { suggestions: message.suggestions } : {}),
+      }));
+    }
+
+    return [{ id: "initial", text: "Hi! How can I help you today?", sender: "bot" }];
+  });
   const [userId, setUserId] = useState<string | null>(null);
   const [cogUserId, setCogUserId] = useState("");
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
@@ -792,14 +923,19 @@ export function ChatInterface({
   const [isLoading, setIsLoading] = useState(false);
   const [isTraining, setIsTraining] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [trainConfirmOpen, setTrainConfirmOpen] = useState(false);
+  const [trainConfirmMode, setTrainConfirmMode] = useState<"train_llm" | "train_kb_expert" | null>(null);
   const [trainSending, setTrainSending] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const heightClassName = fullHeight ? "inbox-height" : "chat-height";
+  const showAuthActions = showAuthCta && !isAuthenticated && !authLoading;
   const sessionLinkHref = sessionId ? `/session?id=${encodeURIComponent(sessionId)}` : null;
   const kbEndpoint = useMemo(
     () => String(sessionConfig?.agent_kb_endpoint ?? "").trim(),
     [sessionConfig],
+  );
+  const authHeader = useMemo(
+    () => buildBearerTokenFromTokens(tokens),
+    [tokens?.accessToken, tokens?.idToken],
   );
   const walletUserId = useMemo(() => {
     const resolved = sessionUserId ?? (cogUserId.trim() ? cogUserId.trim() : null) ?? userId;
@@ -814,10 +950,6 @@ export function ChatInterface({
     return resolved || "x-api-key";
   }, [sessionConfig]);
   const kbKeyValue = useMemo(() => String(sessionConfig?.agent_kb_key ?? "").trim(), [sessionConfig]);
-  const analyzeSourcesEndpoint = useMemo(
-    () => (kbEndpoint ? joinUrl(kbEndpoint, "/analyze-response-sources") : ""),
-    [kbEndpoint],
-  );
   const sourceArticleEndpoint = useMemo(
     () => (kbEndpoint ? joinUrl(kbEndpoint, "/source-article") : ""),
     [kbEndpoint],
@@ -885,7 +1017,7 @@ export function ChatInterface({
       try {
         const userIdentifier = sessionUserId ?? (await resolveUserIdentifier());
         if (!userIdentifier) {
-          setError("Unable to resolve user identity for session chat.");
+          setError("Unable to resolve user identity for agent chat.");
           return;
         }
         setSessionUserId((prev) => prev ?? userIdentifier);
@@ -893,7 +1025,7 @@ export function ChatInterface({
         if (!active) return;
         if (!session?.config || !session.config.chat_api_endpoint) {
           setSessionConfig(null);
-          setError("Session chat configuration is missing required settings.");
+          setError("Agent chat configuration is missing required settings.");
           return;
         }
         setSessionConfig(session.config);
@@ -901,7 +1033,7 @@ export function ChatInterface({
         if (!active) return;
         console.error("[ChatInterface] Unable to load session config", err);
         setSessionConfig(null);
-        setError("Unable to load session configuration for chat.");
+        setError("Unable to load agent configuration for chat.");
       } finally {
         if (active) {
           setSessionConfigLoading(false);
@@ -941,17 +1073,121 @@ export function ChatInterface({
     };
   }, []);
 
+  const analyzeBotResponseSources = useCallback(
+    async (options: {
+      responseText: string;
+      signal: AbortSignal;
+      asyncJobId?: string;
+      onJobUpdate?: (job: AsyncJobResponse) => void;
+    }) => {
+      if (!sessionConfig?.chat_api_endpoint) {
+        throw new Error("Agent chat configuration is missing required settings.");
+      }
+
+      const responseText = String(options.responseText ?? "");
+      const endpoint = String(sessionConfig.chat_api_endpoint).trim();
+      if (!endpoint) {
+        throw new Error("Chat API endpoint is missing for this agent.");
+      }
+
+      const resolvedUserId =
+        sessionUserId || cogUserId || userId || (await resolveUserIdentifier()) || createId();
+      if (!sessionUserId && resolvedUserId) {
+        setSessionUserId(resolvedUserId);
+      }
+
+      const headerName = (sessionConfig?.chat_api_key_name || "x-api-key").trim() || "x-api-key";
+      const headerValue = sessionConfig?.chat_api_key ? String(sessionConfig.chat_api_key).trim() : "";
+      const headers: Record<string, string> = {
+        accept: "application/json",
+        "Content-Type": "application/json",
+      };
+      if (headerName && headerValue) {
+        headers[headerName] = headerValue;
+      }
+      if (authHeader) {
+        headers.Authorization = authHeader;
+      }
+
+      const requestPayload = buildRequestFromSchema(
+        sessionConfig?.chat_api_request_schema,
+        responseText,
+        resolvedUserId,
+      );
+      (requestPayload as Record<string, unknown>).llm = "gemini";
+      (requestPayload as Record<string, unknown>).agent = KB_ANALYZER_AGENT;
+      (requestPayload as Record<string, unknown>).async_job_id = options.asyncJobId || createId();
+      (requestPayload as Record<string, unknown>).user_id = resolvedUserId;
+      if (!("userId" in requestPayload)) {
+        (requestPayload as Record<string, unknown>).userId = resolvedUserId;
+      }
+      if (!("message" in requestPayload)) {
+        (requestPayload as Record<string, unknown>).message = responseText;
+      }
+
+      const started = await startChat({
+        endpoint,
+        headers,
+        body: requestPayload,
+        signal: options.signal,
+      });
+
+      let finalPayload: ChatSyncResponse;
+      if (isAsyncJobResponse(started)) {
+        const completed = await pollChatJob({
+          chatEndpoint: endpoint,
+          initial: started,
+          headers,
+          signal: options.signal,
+          onUpdate: options.onJobUpdate,
+        });
+
+        if (!completed.result || typeof completed.result !== "object") {
+          throw new Error("Async analyzer job completed without a result payload.");
+        }
+        finalPayload = completed.result as ChatSyncResponse;
+      } else {
+        finalPayload = started as ChatSyncResponse;
+      }
+
+      const usageMetadata = extractUsageMetadata(finalPayload);
+      const rawText =
+        finalPayload && typeof finalPayload === "object" && typeof (finalPayload as any).text === "string"
+          ? String((finalPayload as any).text)
+          : "";
+
+      const parsed = safeParseJsonFromText(rawText);
+      if (!parsed || typeof parsed !== "object") {
+        throw new Error("KB analyzer did not return valid JSON.");
+      }
+
+      const segments = normalizeKbAnalyzerSegments(responseText, parsed as KbAnalyzerResponsePayload);
+      if (!segments.length) {
+        throw new Error("KB analyzer returned no segments to attribute.");
+      }
+
+      return { segments, usageMetadata };
+    },
+    [authHeader, cogUserId, sessionConfig, sessionUserId, userId],
+  );
+
   const handleSendMessage = async (
     text: string,
     options?: { skipWalletUsage?: boolean },
   ): Promise<string | null> => {
     if (!text.trim() || isLoading) return null;
     if (sessionId && !sessionConfig && !sessionConfigLoading) {
-      setError("Session chat configuration is not available yet.");
+      setError("Agent chat configuration is not available yet.");
       return null;
     }
 
     const cleanText = text.trim();
+    const isKbExpertRequest = cleanText.toLowerCase().startsWith(KB_EXPERT_PREFIX);
+    const strippedKbExpertMessage = isKbExpertRequest
+      ? cleanText.slice(KB_EXPERT_PREFIX.length).trimStart()
+      : "";
+    const payloadText =
+      isKbExpertRequest && strippedKbExpertMessage ? strippedKbExpertMessage : cleanText;
     const userMessage: ChatMessage = { id: createId(), text: cleanText, sender: "user" };
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
@@ -971,7 +1207,7 @@ export function ChatInterface({
       if (useSessionEndpoint) {
         const endpoint = String(sessionConfig?.chat_api_endpoint || "").trim();
         if (!endpoint) {
-          throw new Error("Chat API endpoint is missing for this session.");
+          throw new Error("Chat API endpoint is missing for this agent.");
         }
         const headers: Record<string, string> = { "Content-Type": "application/json" };
         const headerName = (sessionConfig?.chat_api_key_name || "x-api-key").trim();
@@ -979,12 +1215,18 @@ export function ChatInterface({
         if (headerName && headerValue) {
           headers[headerName] = headerValue;
         }
+        if (authHeader) {
+          headers.Authorization = authHeader;
+        }
 
         const requestPayload = buildRequestFromSchema(
           sessionConfig?.chat_api_request_schema,
-          cleanText,
+          payloadText,
           resolvedUserId,
         );
+        if (isKbExpertRequest) {
+          (requestPayload as Record<string, unknown>).agent = KB_EXPERT_AGENT;
+        }
 
         response = await fetch(endpoint, {
           method: "POST",
@@ -1031,17 +1273,23 @@ export function ChatInterface({
         const userIdentifier = keyVal || userId || createId();
         const payload: Record<string, unknown> = {
           userId: userIdentifier,
-          message: cleanText,
+          message: payloadText,
           llm: "gemini",
-          llm_model: "gemini-2.5-flash",
+          llm_model: "gemini-3-flash-preview",
         };
+        if (isKbExpertRequest) payload.agent = KB_EXPERT_AGENT;
 
         if (assistantId) payload.assistant_id = assistantId;
         if (keyVal) payload.key = keyVal;
 
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (authHeader) {
+          headers.Authorization = authHeader;
+        }
+
         response = await fetch(API_ENDPOINT, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify(payload),
         });
 
@@ -1093,13 +1341,10 @@ export function ChatInterface({
   };
 
   const suggestionsDisabled = isLoading || isTraining || (Boolean(sessionId) && sessionConfigLoading);
-  const trainDisabled =
-    !showTrainButton ||
-    !sessionId ||
-    !sessionConfig ||
-    suggestionsDisabled ||
-    trainSending ||
-    !trainCommand;
+  const baseTrainDisabled =
+    !showTrainButton || !sessionId || !sessionConfig || suggestionsDisabled || trainSending;
+  const trainDisabled = baseTrainDisabled || !trainCommand;
+  const trainKbExpertDisabled = baseTrainDisabled;
 
   const handleSuggestionSelect = (suggestion: string) => {
     if (!suggestion.trim()) return;
@@ -1108,14 +1353,17 @@ export function ChatInterface({
   };
 
   const handleTrainConfirm = async () => {
-    const command = trainCommand.trim();
-    if (!command) {
-      setError("Train Chatbot Command is not configured for this session.");
-      setTrainConfirmOpen(false);
+    const mode = trainConfirmMode;
+    if (!mode) return;
+
+    const command = mode === "train_kb_expert" ? TRAIN_LLM_KB_EXPERT_COMMAND : trainCommand.trim();
+    if (mode === "train_llm" && !command) {
+      setError("Train Agent Command is not configured for this agent.");
+      setTrainConfirmMode(null);
       return;
     }
     setTrainSending(true);
-    setTrainConfirmOpen(false);
+    setTrainConfirmMode(null);
     try {
       const resolvedWalletUserId = await handleSendMessage(command, { skipWalletUsage: true });
       if (resolvedWalletUserId) {
@@ -1169,7 +1417,7 @@ export function ChatInterface({
     const sourceId = activeSourceId;
 
     if (!sourceArticleEndpoint) {
-      setSourceError("Knowledge Base endpoint is not configured for this session.");
+      setSourceError("Knowledge Base endpoint is not configured for this agent.");
       return;
     }
 
@@ -1183,6 +1431,9 @@ export function ChatInterface({
         const headers: Record<string, string> = { accept: "application/json" };
         if (kbKeyValue) {
           headers[kbKeyName] = kbKeyValue;
+        }
+        if (authHeader) {
+          headers.Authorization = authHeader;
         }
 
         const url = appendQueryParam(sourceArticleEndpoint, "id", sourceId);
@@ -1245,11 +1496,11 @@ export function ChatInterface({
       active = false;
       controller.abort();
     };
-  }, [activeSourceId, enableAttribution, kbKeyName, kbKeyValue, sourceArticleEndpoint]);
+  }, [activeSourceId, authHeader, enableAttribution, kbKeyName, kbKeyValue, sourceArticleEndpoint]);
 
   const handleSaveSource = useCallback(async () => {
     if (!sourceArticleEndpoint) {
-      setSourceError("Knowledge Base endpoint is not configured for this session.");
+      setSourceError("Knowledge Base endpoint is not configured for this agent.");
       return;
     }
     if (!sourceModal) return;
@@ -1262,6 +1513,9 @@ export function ChatInterface({
       };
       if (kbKeyValue) {
         headers[kbKeyName] = kbKeyValue;
+      }
+      if (authHeader) {
+        headers.Authorization = authHeader;
       }
 
       const res = await fetch(sourceArticleEndpoint, {
@@ -1288,18 +1542,29 @@ export function ChatInterface({
     } finally {
       setSourceSaving(false);
     }
-  }, [kbKeyName, kbKeyValue, sourceArticleEndpoint, sourceBody, sourceModal, sourceTitle]);
+  }, [authHeader, kbKeyName, kbKeyValue, sourceArticleEndpoint, sourceBody, sourceModal, sourceTitle]);
+
+  const cardShellClassName =
+    variant === "bleed"
+      ? "border-0 bg-white dark:bg-gray-dark"
+      : "rounded-[10px] border border-stroke bg-white shadow-1 dark:border-dark-3 dark:bg-gray-dark dark:shadow-card";
+  const cardBodyClassName =
+    variant === "bleed"
+      ? "flex flex-col overflow-hidden bg-gray-1 dark:bg-dark-2"
+      : "flex flex-col overflow-hidden rounded-b-[10px] bg-gray-1 dark:bg-dark-2";
+  const titleText = headerTitle ?? "Review responses and edit sources inline.";
+  const subtitleText = headerSubtitle ?? "";
 
   const chatCard = (
-    <div className="rounded-[10px] border border-stroke bg-white shadow-1 dark:border-dark-3 dark:bg-gray-dark dark:shadow-card">
+    <div className={cardShellClassName}>
       <div className="flex flex-col gap-3 border-b border-stroke px-5 py-4 dark:border-dark-3 md:flex-row md:items-center md:justify-between">
         <div className="space-y-1">
           <p className="text-sm font-semibold uppercase tracking-[0.08em] text-dark dark:text-white">
-            Review responses and edit sources inline.
+            {titleText}
           </p>
-          <p className="text-sm text-dark-5 dark:text-dark-6">
-            
-          </p>
+          {subtitleText ? (
+            <p className="text-sm text-dark-5 dark:text-dark-6">{subtitleText}</p>
+          ) : null}
         </div>
 
         <div className="flex items-center gap-2">
@@ -1308,48 +1573,72 @@ export function ChatInterface({
               href={sessionLinkHref}
               className="inline-flex items-center rounded-full border border-stroke px-3 py-1 text-xs font-semibold text-dark transition hover:bg-gray-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 dark:border-dark-3 dark:text-white dark:hover:bg-dark-3"
             >
-              View session
+              View agent
               </Link>
           ) : null}
           {showTrainButton ? (
-            <button
-              type="button"
-              className="inline-flex items-center rounded-full bg-primary px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-white shadow-sm transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-              onClick={() => setTrainConfirmOpen(true)}
-              disabled={trainDisabled}
-              title={
-                !sessionId
-                  ? "Open this page with a session_id to train."
-                  : !sessionConfig
-                    ? "Session configuration is not loaded yet."
-                    : !trainCommand
-                      ? "Configure Train Chatbot Command in the session settings."
+            <>
+              <button
+                type="button"
+                className="inline-flex items-center rounded-full bg-primary px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-white shadow-sm transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => setTrainConfirmMode("train_llm")}
+                disabled={trainDisabled}
+                title={
+                  !sessionId
+                    ? "Open this page with an agent ID to train."
+                    : !sessionConfig
+                      ? "Agent configuration is not loaded yet."
+                      : !trainCommand
+                        ? "Configure Train Agent Command in the agent settings."
+                        : suggestionsDisabled
+                          ? "Chat is busy right now."
+                          : undefined
+                }
+              >
+                {trainSending ? "Training..." : "Train LLM"}
+              </button>
+              <button
+                type="button"
+                className="inline-flex items-center rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-primary shadow-sm transition hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-60 dark:border-primary/30 dark:bg-primary/15 dark:hover:bg-primary/20"
+                onClick={() => setTrainConfirmMode("train_kb_expert")}
+                disabled={trainKbExpertDisabled}
+                title={
+                  !sessionId
+                    ? "Open this page with an agent ID to train."
+                    : !sessionConfig
+                      ? "Agent configuration is not loaded yet."
                       : suggestionsDisabled
                         ? "Chat is busy right now."
                         : undefined
-              }
-            >
-              {trainSending ? "Training..." : "Train LLM"}
-            </button>
+                }
+              >
+                {trainSending ? "Training..." : "Train LLM KB Expert"}
+              </button>
+            </>
           ) : null}
-          <span
-            className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
-              isTraining
-                ? "bg-orange-light/20 text-orange-light"
-                : "bg-green-light-7 text-green-dark"
-            }`}
-          >
-            <span
-              className={`h-2 w-2 rounded-full ${
-                isTraining ? "bg-orange-light" : "bg-green-dark"
-              }`}
-            />
-            {isTraining ? "Training in progress" : "Assistant ready"}
-          </span>
+          {showAuthActions ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-[0.08em] text-dark-5 dark:text-dark-6">
+                Already a member?
+              </span>
+              <Link
+                href="/auth/sign-in"
+                className="inline-flex items-center rounded-full border border-stroke px-3 py-1 text-xs font-semibold text-dark transition hover:bg-gray-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 dark:border-dark-3 dark:text-white dark:hover:bg-dark-3"
+              >
+                Sign in
+              </Link>
+              <Link
+                href="/auth/sign-up"
+                className="inline-flex items-center rounded-full bg-primary px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-white shadow-sm transition hover:bg-opacity-90"
+              >
+                Create account
+              </Link>
+            </div>
+          ) : null}
         </div>
       </div>
 
-      <div className="flex flex-col overflow-hidden bg-gray-1 dark:bg-dark-2 rounded-b-[10px]">
+      <div className={cardBodyClassName}>
         <div className={`${heightClassName} flex flex-col`}>
           <MessageList
             messages={messages}
@@ -1357,9 +1646,9 @@ export function ChatInterface({
             onSuggestionSelect={handleSuggestionSelect}
             disableSuggestions={suggestionsDisabled}
             enableAttribution={enableAttribution}
-            analyzeSourcesEndpoint={analyzeSourcesEndpoint}
-            kbKeyName={kbKeyName}
-            kbKeyValue={kbKeyValue}
+            analyzeSources={
+              enableAttribution && sessionConfig?.chat_api_endpoint && kbEndpoint ? analyzeBotResponseSources : undefined
+            }
             onOpenSource={enableAttribution ? handleOpenSource : undefined}
             walletUserId={walletUserId}
           />
@@ -1395,28 +1684,38 @@ export function ChatInterface({
   );
 
   const trainConfirmModal =
-    showTrainButton && trainConfirmOpen ? (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setTrainConfirmOpen(false)}>
+    showTrainButton && trainConfirmMode ? (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        onClick={() => setTrainConfirmMode(null)}
+      >
         <div
           className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-dark"
           role="dialog"
           aria-modal="true"
           onClick={(e) => e.stopPropagation()}
         >
-          <h4 className="text-lg font-semibold text-dark dark:text-white">Train LLM</h4>
+          <h4 className="text-lg font-semibold text-dark dark:text-white">
+            {trainConfirmMode === "train_kb_expert" ? "Train LLM KB Expert" : "Train LLM"}
+          </h4>
           <p className="mt-3 text-sm text-dark-5 dark:text-dark-6">
-            We recommend making as many edits as possible before training to optimize costs. Are you sure you want to proceed?
+            {trainConfirmMode === "train_kb_expert"
+              ? "Train LLM KB Expert will start a training run. We recommend making as many edits as possible before training to optimize costs. Are you sure you want to proceed?"
+              : "We recommend making as many edits as possible before training to optimize costs. Are you sure you want to proceed?"}
           </p>
-          {trainCommand ? (
+          {trainConfirmMode === "train_kb_expert" || trainCommand ? (
             <div className="mt-3 rounded-lg border border-stroke bg-gray-1 px-3 py-2 text-xs text-dark dark:border-dark-3 dark:bg-dark-2 dark:text-white">
-              Command: <span className="font-mono">{trainCommand}</span>
+              Command:{" "}
+              <span className="font-mono">
+                {trainConfirmMode === "train_kb_expert" ? TRAIN_LLM_KB_EXPERT_COMMAND : trainCommand}
+              </span>
             </div>
           ) : null}
           <div className="mt-5 flex justify-end gap-3">
             <button
               type="button"
               className="rounded-lg border border-stroke px-4 py-2 text-xs font-semibold uppercase tracking-wide text-dark transition hover:shadow-sm dark:border-dark-3 dark:text-white"
-              onClick={() => setTrainConfirmOpen(false)}
+              onClick={() => setTrainConfirmMode(null)}
               disabled={trainSending}
             >
               Cancel
@@ -1425,9 +1724,13 @@ export function ChatInterface({
               type="button"
               className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               onClick={handleTrainConfirm}
-              disabled={trainDisabled}
+              disabled={trainConfirmMode === "train_kb_expert" ? trainKbExpertDisabled : trainDisabled}
             >
-              {trainSending ? "Training..." : "Yes, Train"}
+              {trainSending
+                ? "Training..."
+                : trainConfirmMode === "train_kb_expert"
+                  ? "Yes, Train KB Expert"
+                  : "Yes, Train"}
             </button>
           </div>
         </div>
@@ -1669,9 +1972,12 @@ type MessageProps = {
   onSuggestionSelect?: (suggestion: string) => void;
   disableSuggestions?: boolean;
   enableAttribution?: boolean;
-  analyzeSourcesEndpoint?: string;
-  kbKeyName?: string;
-  kbKeyValue?: string;
+  analyzeSources?: (options: {
+    responseText: string;
+    signal: AbortSignal;
+    asyncJobId?: string;
+    onJobUpdate?: (job: AsyncJobResponse) => void;
+  }) => Promise<{ segments: SourceSegment[]; usageMetadata: UsageMetadata | null }>;
   onOpenSource?: (request: SourceOpenRequest) => void;
   walletUserId?: string | null;
   usageMetadata?: UsageMetadata | null;
@@ -1685,9 +1991,7 @@ function Message({
   onSuggestionSelect,
   disableSuggestions = false,
   enableAttribution = false,
-  analyzeSourcesEndpoint,
-  kbKeyName = "x-api-key",
-  kbKeyValue = "",
+  analyzeSources,
   onOpenSource,
   walletUserId,
   usageMetadata,
@@ -1702,10 +2006,11 @@ function Message({
   const [analysisSegments, setAnalysisSegments] = useState<SourceSegment[] | null>(null);
   const [analysisStatus, setAnalysisStatus] = useState<"idle" | "loading" | "loaded" | "error">("idle");
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const analysisJobRef = useRef<{ payloadKey: string; asyncJobId: string } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const [isHovering, setIsHovering] = useState(false);
 
-  const isAttributionEnabled = Boolean(enableAttribution && !isUser && !isLoading && analyzeSourcesEndpoint);
+  const isAttributionEnabled = Boolean(enableAttribution && !isUser && !isLoading && analyzeSources && onOpenSource);
   const showSegmentedMarkdown = Boolean(isAttributionEnabled && analysisSegments && analysisSegments.length);
   const tokenUsageText = useMemo(() => {
     if (!usageMetadata || typeof usageMetadata !== "object") return null;
@@ -1813,7 +2118,7 @@ function Message({
     if (!isAttributionEnabled) return;
     if (analysisSegments) return;
     if (analysisStatus === "loading") return;
-    if (!analyzeSourcesEndpoint) return;
+    if (!analyzeSources) return;
 
     setAnalysisStatus("loading");
     setAnalysisError(null);
@@ -1823,31 +2128,17 @@ function Message({
     abortRef.current = controller;
 
     try {
-      const headers: Record<string, string> = {
-        accept: "application/json",
-        "Content-Type": "application/json",
-      };
-      if (kbKeyValue) {
-        headers[kbKeyName] = kbKeyValue;
-      }
+      const payloadKey = text;
+      const reuseJob = analysisStatus !== "error" && analysisJobRef.current?.payloadKey === payloadKey;
+      const asyncJobId = reuseJob ? analysisJobRef.current!.asyncJobId : createId();
+      analysisJobRef.current = { payloadKey, asyncJobId };
 
-      const res = await fetch(analyzeSourcesEndpoint, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ response: text, full_response_text: text }),
+      const { segments, usageMetadata } = await analyzeSources({
+        responseText: text,
         signal: controller.signal,
+        asyncJobId,
       });
 
-      const payload = await res.json().catch(() => null as any);
-
-      if (!res.ok) {
-        const message =
-          (payload && typeof payload === "object" && (payload.message || payload.error)) ||
-          `Failed to analyze sources (status ${res.status})`;
-        throw new Error(String(message));
-      }
-
-      const usageMetadata = extractUsageMetadata(payload);
       if (usageMetadata?.totalTokenCount) {
         const fallbackLocalId = (() => {
           if (typeof window === "undefined") return null;
@@ -1868,44 +2159,21 @@ function Message({
         }
       }
 
-      const segmentsRaw = payload && typeof payload === "object" ? (payload as any).segments : null;
-      const normalized: SourceSegment[] = Array.isArray(segmentsRaw)
-        ? segmentsRaw
-            .filter((entry) => entry && typeof entry === "object")
-            .map((entry) => ({
-              text:
-                typeof (entry as any).text === "string"
-                  ? (entry as any).text
-                  : typeof (entry as any).segment_text === "string"
-                    ? (entry as any).segment_text
-                    : typeof (entry as any).segmentText === "string"
-                      ? (entry as any).segmentText
-                      : "",
-              source_id:
-                (entry as any).source_id === null || typeof (entry as any).source_id === "string"
-                  ? ((entry as any).source_id as string | null)
-                  : null,
-              source_title:
-                typeof (entry as any).source_title === "string" ? (entry as any).source_title : null,
-            }))
-            .filter((entry) => entry.text.length > 0)
-        : [];
-
-      setAnalysisSegments(normalized);
+      setAnalysisSegments(segments);
       setAnalysisStatus("loaded");
     } catch (err) {
       if (controller.signal.aborted) return;
       const message = err instanceof Error ? err.message : "Unable to analyze sources right now.";
       setAnalysisError(message);
       setAnalysisStatus("error");
+      analysisJobRef.current = null;
     }
   }, [
-    analyzeSourcesEndpoint,
+    analyzeSources,
     analysisSegments,
     analysisStatus,
     isAttributionEnabled,
-    kbKeyName,
-    kbKeyValue,
+    analysisJobRef,
     text,
     walletUserId,
   ]);
@@ -2012,9 +2280,12 @@ type MessageListProps = {
   onSuggestionSelect?: (suggestion: string) => void;
   disableSuggestions?: boolean;
   enableAttribution?: boolean;
-  analyzeSourcesEndpoint?: string;
-  kbKeyName?: string;
-  kbKeyValue?: string;
+  analyzeSources?: (options: {
+    responseText: string;
+    signal: AbortSignal;
+    asyncJobId?: string;
+    onJobUpdate?: (job: AsyncJobResponse) => void;
+  }) => Promise<{ segments: SourceSegment[]; usageMetadata: UsageMetadata | null }>;
   onOpenSource?: (request: SourceOpenRequest) => void;
   walletUserId?: string | null;
 };
@@ -2025,9 +2296,7 @@ function MessageList({
   onSuggestionSelect,
   disableSuggestions,
   enableAttribution = false,
-  analyzeSourcesEndpoint,
-  kbKeyName,
-  kbKeyValue,
+  analyzeSources,
   onOpenSource,
   walletUserId,
 }: MessageListProps) {
@@ -2053,9 +2322,7 @@ function MessageList({
           onSuggestionSelect={onSuggestionSelect}
           disableSuggestions={disableSuggestions}
           enableAttribution={enableAttribution}
-          analyzeSourcesEndpoint={analyzeSourcesEndpoint}
-          kbKeyName={kbKeyName}
-          kbKeyValue={kbKeyValue}
+          analyzeSources={analyzeSources}
           onOpenSource={onOpenSource}
           walletUserId={walletUserId}
           usageMetadata={msg.usageMetadata}

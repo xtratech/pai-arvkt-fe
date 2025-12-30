@@ -1,65 +1,54 @@
-import { SessionsCard } from "./_components/sessions-card";
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import { ChatInterface } from "@/components/chat/chat-interface";
 
-type PropsType = {
-  searchParams: Promise<{
-    selected_time_frame?: string;
-  }>;
+export const metadata: Metadata = {
+  title: "Home",
 };
 
-export default async function Home({ searchParams }: PropsType) {
-  const { selected_time_frame } = await searchParams;
+const introMessages = [
+  {
+    text: "Welcome to Pluree Toolkit. It is a SaaS workspace built to design, test, and continuously improve AI systems without losing control of system prompts, models, or knowledge.",
+  },
+  {
+    text: "Three core pillars:\n- Prompts and model configuration\n- Knowledge base management\n- The chat-and-training loop",
+  },
+  {
+    text: "Prompts and model configuration: create multiple system-prompt profiles like Default, Knowledgebase Expert, Knowledgebase Analyzer, and Knowledgebase Creator. Tune prompts, LLM settings, and a thinking level for each profile.",
+  },
+  {
+    text: "Knowledge base management: maintain articles in a searchable list with filters across status, access, channels, and IDs. The Smart Draft Wizard can draft new entries, check for duplicates and conflicts, run support checks, and ask for confirmation before saving. Power users can jump straight into the KB editor by article ID.",
+  },
+  {
+    text: "Chat and training workflows: each agent has a dedicated chat editor with Markdown responses, quick-reply suggestions, message history shortcuts, and token usage. Training is explicit with confirmations and live status. Source attribution highlights what should be grounded in knowledge sources so every chat can drive a knowledgebase update.",
+    suggestions: [
+      "Show me prompt profiles",
+      "Explain the Smart Draft Wizard",
+      "How does source attribution work?",
+    ],
+  },
+];
 
+export default function Home() {
   return (
-    <>
-      {/*
-      <Suspense fallback={<OverviewCardsSkeleton />}>
-        <OverviewCardsGroup />
+    <div className="flex min-h-[calc(100vh-6rem)] flex-col">
+      <Suspense
+        fallback={
+          <div className="flex flex-1 items-center justify-center bg-gray-1 dark:bg-dark-2">
+            <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-primary border-t-transparent" />
+          </div>
+        }
+      >
+        <ChatInterface
+          fullHeight
+          cardOnly
+          variant="bleed"
+          headerTitle="Pluree Toolkit Assistant"
+          headerSubtitle="Ask about prompts, knowledgebase management, and the chat-and-training loop."
+          initialMessages={introMessages}
+          showAuthCta
+        />
       </Suspense>
-      */}
-
-      <div className="mx-auto w-full max-w-[1460px]">
-        {/*
-        <PaymentsOverview
-          className="col-span-12 xl:col-span-7"
-          key={extractTimeFrame("payments_overview")}
-          timeFrame={extractTimeFrame("payments_overview")?.split(":")[1]}
-        />
-
-        <WeeksProfit
-          key={extractTimeFrame("weeks_profit")}
-          timeFrame={extractTimeFrame("weeks_profit")?.split(":")[1]}
-          className="col-span-12 xl:col-span-5"
-        />
-
-        <UsedDevices
-          className="col-span-12 xl:col-span-5"
-          key={extractTimeFrame("used_devices")}
-          timeFrame={extractTimeFrame("used_devices")?.split(":")[1]}
-        />
-
-        <RegionLabels />
-
-        <div className="col-span-12 grid xl:col-span-8">
-          <Suspense fallback={<TopChannelsSkeleton />}>
-            <TopChannels />
-          </Suspense>
-        </div>
-
-        <Suspense fallback={null}>
-          <ChatsCard />
-        </Suspense>
-        */}
-
-        <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-[26px] font-bold leading-[30px] text-dark dark:text-white">
-            Dashboard
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-6 gap-6">
-          <SessionsCard className="col-span-6 lg:col-span-3" />
-        </div>
-      </div>
-    </>
+    </div>
   );
 }

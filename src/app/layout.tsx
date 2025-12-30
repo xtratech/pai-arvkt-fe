@@ -12,8 +12,8 @@ import { AppShell } from "@/components/Layouts/app-shell";
 
 export const metadata: Metadata = {
   title: {
-    template: "%s | Chat Pluree",
-    default: "Chat Pluree",
+    template: "%s | Pluree Toolkit",
+    default: "Pluree Toolkit",
   },
   description: "Your Structured KnowledgeBase, activated.",
 };
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: PropsWithChildren) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body>
+      <body suppressHydrationWarning>
         <Providers>
           <NextTopLoader color="#5750F1" showSpinner={false} />
           <AppShell>{children}</AppShell>

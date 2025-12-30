@@ -15,6 +15,7 @@ export type FetchSourceArticlesOptions = {
   kbEndpoint: string;
   apiKeyName?: string;
   apiKeyValue?: string;
+  authHeader?: string;
   filters?: SourceArticlesFilters;
   signal?: AbortSignal;
 };
@@ -113,6 +114,7 @@ export async function fetchSourceArticles({
   kbEndpoint,
   apiKeyName = "x-api-key",
   apiKeyValue = "",
+  authHeader,
   filters,
   signal,
 }: FetchSourceArticlesOptions): Promise<{
@@ -135,6 +137,9 @@ export async function fetchSourceArticles({
   const resolvedKeyValue = apiKeyValue.trim();
   if (resolvedKeyValue) {
     headers[apiKeyName.trim() || "x-api-key"] = resolvedKeyValue;
+  }
+  if (authHeader) {
+    headers.Authorization = authHeader;
   }
 
   const response = await fetch(url.toString(), {

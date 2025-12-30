@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { useUser } from "@/contexts/user-context";
 import type React from "react";
 import { NAV_DATA } from "./data";
 import { ArrowLeftIcon, ChevronUp } from "./icons";
@@ -14,6 +15,7 @@ import { useSidebarContext } from "./sidebar-context";
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { isAuthenticated } = useUser();
   const { setIsOpen, isOpen, isMobile, toggleSidebar } = useSidebarContext();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [chatPromptOpen, setChatPromptOpen] = useState(false);
@@ -65,7 +67,7 @@ export function Sidebar() {
   const handleChatPromptSubmit = useCallback(() => {
     const trimmed = chatSessionInput.trim();
     if (!trimmed) {
-      setChatPromptError("Please enter a session ID.");
+      setChatPromptError("Please enter an agent ID.");
       return;
     }
     setChatPromptOpen(false);
@@ -105,7 +107,7 @@ export function Sidebar() {
         <div className="flex h-full flex-col py-10 pl-[25px] pr-[7px]">
           <div className="relative pr-4.5">
             <Link
-              href={"/"}
+              href={"/dashboard"}
               onClick={() => isMobile && toggleSidebar()}
               className="px-0 py-2.5 min-[850px]:py-0"
             >
@@ -126,98 +128,100 @@ export function Sidebar() {
 
           {/* Navigation */}
           <div className="custom-scrollbar mt-6 flex-1 overflow-y-auto pr-3 min-[850px]:mt-10">
-            {NAV_DATA.map((section) => (
-              <div key={section.label} className="mb-6">
-                <h2 className="mb-5 text-sm font-medium text-dark-4 dark:text-dark-6">
-                  {section.label}
-                </h2>
+            {isAuthenticated
+              ? NAV_DATA.map((section) => (
+                  <div key={section.label} className="mb-6">
+                    <h2 className="mb-5 text-sm font-medium text-dark-4 dark:text-dark-6">
+                      {section.label}
+                    </h2>
 
-                <nav role="navigation" aria-label={section.label}>
-                  <ul className="space-y-2">
-                    {section.items.map((item) => (
-                      <li key={item.title}>
-                        {item.items.length ? (
-                          <div>
-                            <MenuItem
-                              isActive={item.items.some(
-                                ({ url }) => url === pathname,
-                              )}
-                              onClick={() => toggleExpanded(item.title)}
-                            >
-                              <item.icon
-                                className="size-6 shrink-0"
-                                aria-hidden="true"
-                              />
+                    <nav role="navigation" aria-label={section.label}>
+                      <ul className="space-y-2">
+                        {section.items.map((item) => (
+                          <li key={item.title}>
+                            {item.items.length ? (
+                              <div>
+                                <MenuItem
+                                  isActive={item.items.some(
+                                    ({ url }) => url === pathname,
+                                  )}
+                                  onClick={() => toggleExpanded(item.title)}
+                                >
+                                  <item.icon
+                                    className="size-6 shrink-0"
+                                    aria-hidden="true"
+                                  />
 
-                              <span>{item.title}</span>
+                                  <span>{item.title}</span>
 
-                              <ChevronUp
-                                className={cn(
-                                  "ml-auto rotate-180 transition-transform duration-200",
-                                  expandedItems.includes(item.title) &&
-                                    "rotate-0",
+                                  <ChevronUp
+                                    className={cn(
+                                      "ml-auto rotate-180 transition-transform duration-200",
+                                      expandedItems.includes(item.title) &&
+                                        "rotate-0",
+                                    )}
+                                    aria-hidden="true"
+                                  />
+                                </MenuItem>
+
+                                {expandedItems.includes(item.title) && (
+                                  <ul
+                                    className="ml-9 mr-0 space-y-1.5 pb-[15px] pr-0 pt-2"
+                                    role="menu"
+                                  >
+                                    {item.items.map((subItem) => (
+                                      <li key={subItem.title} role="none">
+                                        <MenuItem
+                                          as="link"
+                                          href={subItem.url}
+                                          isActive={pathname === subItem.url}
+                                        >
+                                          <span>{subItem.title}</span>
+                                        </MenuItem>
+                                      </li>
+                                    ))}
+                                  </ul>
                                 )}
-                                aria-hidden="true"
-                              />
-                            </MenuItem>
+                              </div>
+                            ) : (
+                              (() => {
+                                const href =
+                                  "url" in item
+                                    ? item.url + ""
+                                    : "/" +
+                                      item.title.toLowerCase().split(" ").join("-");
+                                const isChatItem = href === "/chat" || href === "/chat-editor";
 
-                            {expandedItems.includes(item.title) && (
-                              <ul
-                                className="ml-9 mr-0 space-y-1.5 pb-[15px] pr-0 pt-2"
-                                role="menu"
-                              >
-                                {item.items.map((subItem) => (
-                                  <li key={subItem.title} role="none">
-                                    <MenuItem
-                                      as="link"
-                                      href={subItem.url}
-                                      isActive={pathname === subItem.url}
-                                    >
-                                      <span>{subItem.title}</span>
-                                    </MenuItem>
-                                  </li>
-                                ))}
-                              </ul>
+                                return (
+                                  <MenuItem
+                                    className="flex items-center gap-3 py-3"
+                                    as="link"
+                                    href={href}
+                                    isActive={pathname === href}
+                                    onClick={
+                                      isChatItem
+                                        ? (event: React.MouseEvent<HTMLAnchorElement>) =>
+                                            handleChatNavClick(event, href as "/chat" | "/chat-editor")
+                                        : undefined
+                                    }
+                                  >
+                                    <item.icon
+                                      className="size-6 shrink-0"
+                                      aria-hidden="true"
+                                    />
+
+                                    <span>{item.title}</span>
+                                  </MenuItem>
+                                );
+                              })()
                             )}
-                          </div>
-                        ) : (
-                          (() => {
-                            const href =
-                              "url" in item
-                                ? item.url + ""
-                                : "/" +
-                                  item.title.toLowerCase().split(" ").join("-");
-                            const isChatItem = href === "/chat" || href === "/chat-editor";
-
-                            return (
-                              <MenuItem
-                                className="flex items-center gap-3 py-3"
-                                as="link"
-                                href={href}
-                                isActive={pathname === href}
-                                onClick={
-                                  isChatItem
-                                    ? (event: React.MouseEvent<HTMLAnchorElement>) =>
-                                        handleChatNavClick(event, href as "/chat" | "/chat-editor")
-                                    : undefined
-                                }
-                              >
-                                <item.icon
-                                  className="size-6 shrink-0"
-                                  aria-hidden="true"
-                                />
-
-                                <span>{item.title}</span>
-                              </MenuItem>
-                            );
-                          })()
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </nav>
-              </div>
-            ))}
+                          </li>
+                        ))}
+                      </ul>
+                    </nav>
+                  </div>
+                ))
+              : null}
           </div>
         </div>
       </aside>
@@ -229,18 +233,18 @@ export function Sidebar() {
               {chatPromptDestination === "/chat-editor" ? "Open Chat Editor" : "Open Chat Playground"}
             </h4>
             <p className="mt-3 text-sm text-dark-5 dark:text-dark-6">
-              Enter a session ID to continue.
+              Enter an agent ID to continue.
             </p>
             <div className="mt-4">
               <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
-                Session ID
+                Agent ID
               </label>
               <input
                 type="text"
                 value={chatSessionInput}
                 onChange={(e) => setChatSessionInput(e.target.value)}
                 className="w-full rounded-lg border border-stroke px-3 py-2 text-sm text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-                placeholder="e.g. sess-001"
+                placeholder="e.g. agent-001"
               />
               {chatPromptError ? (
                 <div className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">

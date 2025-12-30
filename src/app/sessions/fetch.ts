@@ -27,10 +27,12 @@ export async function getSessionsData() {
   if (!base) return [] as any[];
 
   try {
+    const authHeader = await resolveAuthHeader();
     const res = await fetch(base, {
       method: 'GET',
       headers: {
         'accept': 'application/json',
+        ...(authHeader ? { Authorization: authHeader } : {}),
         ...(process.env.NEXT_PUBLIC_USERDATA_API_KEY
           ? { 'x-api-key': String(process.env.NEXT_PUBLIC_USERDATA_API_KEY) }
           : {}),
@@ -52,5 +54,22 @@ export async function getSessionsData() {
     return [] as any[];
   } catch {
     return [] as any[];
+  }
+}
+
+async function resolveAuthHeader() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const { fetchAuthSession } = await import("aws-amplify/auth");
+    const session = await fetchAuthSession();
+    const token =
+      session.tokens?.idToken?.toString() ?? session.tokens?.accessToken?.toString();
+    if (!token) return null;
+    return token.toLowerCase().startsWith("bearer ") ? token : `Bearer ${token}`;
+  } catch {
+    return null;
   }
 }

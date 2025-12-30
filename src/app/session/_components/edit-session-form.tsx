@@ -150,7 +150,7 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
         const { session: fetchedSession } = await fetchSessionDetail(sessionId, userId);
         if (!active) return;
         if (!fetchedSession) {
-          setError("Session not found.");
+          setError("Agent not found.");
           setSession(null);
           return;
         }
@@ -176,7 +176,7 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
       } catch (err) {
         if (!active) return;
         console.error("[EditSessionForm] Unable to load session", err);
-        setError("Unable to load this session right now.");
+        setError("Unable to load this agent right now.");
       } finally {
         if (active) {
           setLoading(false);
@@ -207,7 +207,7 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
         return;
       }
       if (!session) {
-        setError("Session data is not loaded yet.");
+        setError("Agent data is not loaded yet.");
         return;
       }
 
@@ -238,10 +238,10 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
         });
 
         setSession(updated);
-        setSuccess("Session updated.");
+        setSuccess("Agent updated.");
       } catch (err) {
         console.error("[EditSessionForm] Unable to update session", err);
-        setError("Unable to update this session. Please try again.");
+        setError("Unable to update this agent. Please try again.");
       } finally {
         setSaving(false);
       }
@@ -279,7 +279,7 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="name">
-            Session Name
+            Agent Name
           </label>
           <input
             id="name"
@@ -288,7 +288,7 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
             value={form.name}
             onChange={handleChange}
             className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-            placeholder="Session name"
+            placeholder="Agent name"
             disabled={saving}
           />
         </div>
@@ -359,7 +359,7 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="train_chatbot_command">
-              Train Chatbot Command
+              Train Agent Command
             </label>
             <input
               id="train_chatbot_command"
@@ -526,7 +526,7 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
           className="rounded-lg border border-stroke px-4 py-2 text-xs font-semibold uppercase tracking-wide text-dark transition hover:shadow-sm dark:border-dark-3 dark:text-white"
           disabled={saving}
         >
-          View Session
+          View Agent
         </button>
         <button
           type="submit"

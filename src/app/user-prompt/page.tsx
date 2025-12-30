@@ -21,7 +21,7 @@ export default async function UserPromptPage({
       <div className="mx-auto w-full max-w-[1460px]">
         <Breadcrumb pageName="User Prompt" />
         <div className="mt-6 rounded-[10px] bg-white p-6 shadow-1 dark:bg-gray-dark dark:shadow-card">
-          <p className="text-sm text-dark-5 dark:text-dark-6">No session_id provided.</p>
+          <p className="text-sm text-dark-5 dark:text-dark-6">No agent ID provided.</p>
         </div>
       </div>
     );
@@ -42,9 +42,9 @@ export default async function UserPromptPage({
 
       <div className="mt-6 rounded-[10px] border border-stroke bg-white p-4 shadow-1 dark:border-dark-3 dark:bg-gray-dark dark:shadow-card sm:p-7.5">
         <div className="mb-4">
-          <h2 className="text-lg font-semibold text-dark dark:text-white">Session User Prompt</h2>
+          <h2 className="text-lg font-semibold text-dark dark:text-white">Agent User Prompt</h2>
           <div className="mt-1 text-sm text-dark-5 dark:text-dark-6">
-            Session: <span className="text-dark dark:text-white font-medium">{session?.name ?? "Unknown"}</span>
+            Agent: <span className="text-dark dark:text-white font-medium">{session?.name ?? "Unknown"}</span>
             <span className="mx-2">|</span>
             ID:{" "}
             <a

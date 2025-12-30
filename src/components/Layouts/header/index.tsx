@@ -24,7 +24,7 @@ export function Header() {
       </button>
 
       {isMobile && (
-        <Link href={"/"} className="ml-2 max-[430px]:hidden min-[375px]:ml-4">
+        <Link href={"/dashboard"} className="ml-2 max-[430px]:hidden min-[375px]:ml-4">
           <Image
             src={"/images/logo/logo-icon.svg"}
             width={32}
@@ -37,7 +37,7 @@ export function Header() {
 
       <div className="max-xl:hidden">
         <h1 className="mb-0.5 text-heading-5 font-bold text-dark dark:text-white">
-          Chat Pluree
+          Pluree Toolkit
         </h1>
         <p className="font-medium text-dark-5 dark:text-dark-6">Your KnowledgeBase, tamed and activated.</p>
       </div>

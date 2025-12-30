@@ -46,7 +46,7 @@ export default function SigninWithPassword() {
         setError(null);
         return;
       }
-      router.replace("/");
+      router.replace("/dashboard");
     } catch (err: any) {
       const message =
         err?.name === "UserNotConfirmedException"
@@ -69,7 +69,7 @@ export default function SigninWithPassword() {
           ? { userAttributes: attrs }
           : undefined,
       } as any);
-      router.replace("/");
+      router.replace("/dashboard");
     } catch (err: any) {
       const message = err?.message || "Failed to set new password.";
       setError(message);

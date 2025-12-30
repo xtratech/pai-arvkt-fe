@@ -111,7 +111,7 @@ export function CreateSessionForm() {
         router.refresh();
       } catch (err) {
         console.error("[CreateSessionForm] Unable to create session", err);
-        setError("Unable to create session. Please try again.");
+        setError("Unable to create agent. Please try again.");
       } finally {
         setSaving(false);
       }
@@ -123,7 +123,7 @@ export function CreateSessionForm() {
     <form onSubmit={handleSubmit} className="mt-6 space-y-5 rounded-[10px] bg-white p-6 shadow-1 dark:bg-gray-dark dark:shadow-card">
       <div>
         <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="name">
-          Session Name
+          Agent Name
         </label>
         <input
           id="name"
@@ -133,7 +133,7 @@ export function CreateSessionForm() {
           value={form.name}
           onChange={handleChange}
           className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-          placeholder="Give your session a name"
+          placeholder="Give your agent a name"
           disabled={saving}
         />
       </div>
@@ -149,7 +149,7 @@ export function CreateSessionForm() {
           onChange={handleChange}
           rows={3}
           className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-          placeholder="Optional notes about this session"
+          placeholder="Optional notes about this agent"
           disabled={saving}
         />
       </div>
@@ -198,7 +198,7 @@ export function CreateSessionForm() {
           disabled={saving || !form.name.trim()}
           className="rounded-lg bg-primary px-5 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {saving ? "Creating..." : "Create Session"}
+          {saving ? "Creating..." : "Create Agent"}
         </button>
       </div>
     </form>

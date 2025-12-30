@@ -153,7 +153,7 @@ export function TargetChatbotSettingsForm() {
   }, [initialValues]);
 
   return (
-    <ShowcaseSection title="Target Chatbot Details" className="!p-7">
+    <ShowcaseSection title="Target Agent Details" className="!p-7">
       <form onSubmit={handleSubmit} className="space-y-5.5">
         <InputGroup
           className="space-y-2"

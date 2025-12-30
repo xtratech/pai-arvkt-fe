@@ -84,7 +84,7 @@ export function SessionList() {
       } catch (err) {
         if (!active) return;
         console.error("[SessionList] Unable to load bots", err);
-        setError("Unable to load bots at the moment.");
+        setError("Unable to load agents at the moment.");
       } finally {
         if (active) {
           setLoading(false);
@@ -136,13 +136,13 @@ export function SessionList() {
       <div className="mt-6 rounded-[10px] bg-white p-6 shadow-1 dark:bg-gray-dark dark:shadow-card">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm text-dark-5 dark:text-dark-6">
-            No bots found. Create your first bot to get started.
+            No agents found. Create your first agent to get started.
           </p>
           <Link
             className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90"
             href="/session?id=new"
           >
-            Add New Bot
+            Add New Agent
           </Link>
         </div>
       </div>
@@ -156,7 +156,7 @@ export function SessionList() {
           className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90"
           href="/session?id=new"
         >
-          Add New Session
+          Add New Agent
         </Link>
       </div>
       <div className="mt-6 grid grid-cols-6 gap-8">
@@ -169,4 +169,3 @@ export function SessionList() {
     </>
   );
 }
-

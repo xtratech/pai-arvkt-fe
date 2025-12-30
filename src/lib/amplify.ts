@@ -2,6 +2,7 @@
 
 import { Amplify } from "aws-amplify";
 import { fetchAuthSession } from "aws-amplify/auth";
+import { buildBearerTokenFromSession } from "@/lib/auth-headers";
 
 let configured = false;
 
@@ -100,12 +101,9 @@ export function configureAmplify() {
 
                 try {
                   const session = await fetchAuthSession();
-                  const token =
-                    session.tokens?.idToken?.toString() ??
-                    session.tokens?.accessToken?.toString();
-
-                  if (token) {
-                    headers.Authorization = token;
+                  const bearer = buildBearerTokenFromSession(session);
+                  if (bearer) {
+                    headers.Authorization = bearer;
                   }
                 } catch (error) {
                   if (process.env.NODE_ENV !== "production") {

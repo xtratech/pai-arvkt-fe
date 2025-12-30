@@ -8,6 +8,7 @@ import {
 } from "@/services/storage-paths";
 import { useUser } from "@/contexts/user-context";
 import type { SessionRecord } from "@/services/sessions";
+import { buildBearerTokenFromTokens } from "@/lib/auth-headers";
 
 type Props = {
   userId?: string;
@@ -135,7 +136,7 @@ export function UserPromptContent({
         const headers: Record<string, string> = {
           accept: "text/plain, application/json",
         };
-        const bearer = tokens?.idToken ?? tokens?.accessToken ?? undefined;
+        const bearer = buildBearerTokenFromTokens(tokens);
         if (bearer) headers.Authorization = bearer;
         if (process.env.NEXT_PUBLIC_USERDATA_API_KEY) {
           headers["x-api-key"] = String(process.env.NEXT_PUBLIC_USERDATA_API_KEY);
@@ -250,7 +251,7 @@ export function UserPromptContent({
       setSession(current);
     } catch (err) {
       console.error("[UserPromptContent] Unable to update session index", err);
-      setError("Saved file but failed to update session metadata.");
+      setError("Saved file but failed to update agent metadata.");
     }
   };
 
@@ -316,7 +317,7 @@ export function UserPromptContent({
       <textarea
         value={content ?? ""}
         onChange={(e) => setContent(e.target.value)}
-        placeholder="No user prompt set for this session."
+        placeholder="No user prompt set for this agent."
         className="h-64 w-full rounded-lg border border-stroke bg-white px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
       />
       {error && (

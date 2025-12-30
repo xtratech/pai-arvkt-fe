@@ -5,6 +5,7 @@ import { buildKnowledgeBaseFilePath, buildSessionsIndexPath } from "@/services/s
 import { useUser } from "@/contexts/user-context";
 import { apiGet, apiPut } from "@/services/api-client";
 import type { SessionRecord } from "@/services/sessions";
+import { buildBearerTokenFromTokens } from "@/lib/auth-headers";
 
 type Props = {
   userId?: string;
@@ -64,6 +65,10 @@ export function KbFileContent({ userId, sessionId, fileName, fallbackEntries }: 
   const [session, setSession] = useState<SessionRecord | null>(null);
   const [saving, setSaving] = useState<"save" | "saveAs" | "publish" | null>(null);
   const targetFile = useMemo(() => fileName?.trim() || null, [fileName]);
+  const authHeader = useMemo(
+    () => buildBearerTokenFromTokens(tokens),
+    [tokens?.accessToken, tokens?.idToken],
+  );
 
   const baseEndpoint = useMemo(() => {
     const base = process.env.NEXT_PUBLIC_USERDATA_API_ENDPOINT ?? "";
@@ -125,8 +130,7 @@ export function KbFileContent({ userId, sessionId, fileName, fallbackEntries }: 
         const headers: Record<string, string> = {
           accept: "text/plain, application/json",
         };
-        const bearer = tokens?.idToken ?? tokens?.accessToken ?? undefined;
-        if (bearer) headers.Authorization = bearer;
+        if (authHeader) headers.Authorization = authHeader;
         if (process.env.NEXT_PUBLIC_USERDATA_API_KEY) {
           headers["x-api-key"] = String(process.env.NEXT_PUBLIC_USERDATA_API_KEY);
         }
@@ -167,8 +171,7 @@ export function KbFileContent({ userId, sessionId, fileName, fallbackEntries }: 
     targetFile,
     fallbackEntries,
     normalizeContent,
-    tokens?.accessToken,
-    tokens?.idToken,
+    authHeader,
     baseEndpoint,
   ]);
 
@@ -240,7 +243,7 @@ export function KbFileContent({ userId, sessionId, fileName, fallbackEntries }: 
       setSession(current);
     } catch (err) {
       console.error("[KbFileContent] Unable to update session index", err);
-      setError("Saved file but failed to update session metadata.");
+      setError("Saved file but failed to update agent metadata.");
     }
   };
 
@@ -306,7 +309,7 @@ export function KbFileContent({ userId, sessionId, fileName, fallbackEntries }: 
       <textarea
         value={content ?? ""}
         onChange={(e) => setContent(e.target.value)}
-        placeholder="No knowledgebase content set for this session."
+        placeholder="No knowledgebase content set for this agent."
         className="h-64 w-full rounded-lg border border-stroke bg-white px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
       />
       {error && (

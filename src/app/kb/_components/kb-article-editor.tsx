@@ -97,7 +97,7 @@ export function KbArticleEditor({ sessionId, articleId }: Props) {
     let active = true;
     async function loadSession() {
       if (!resolvedSessionId) {
-        setError("No session_id provided.");
+        setError("No agent ID provided.");
         setSession(null);
         return;
       }
@@ -117,13 +117,13 @@ export function KbArticleEditor({ sessionId, articleId }: Props) {
         const found = sessions.find((s) => s.id === resolvedSessionId) ?? null;
         setSession(found);
         if (!found) {
-          setError("Session not found.");
+          setError("Agent not found.");
         }
       } catch (err) {
         if (!active) return;
         console.error("[KbArticleEditor] Unable to load session", err);
         setSession(null);
-        setError("Unable to load session configuration right now.");
+        setError("Unable to load agent configuration right now.");
       } finally {
         if (active) {
           setLoading(false);
@@ -146,7 +146,7 @@ export function KbArticleEditor({ sessionId, articleId }: Props) {
     return (
       <div className="flex items-center gap-2 text-sm text-dark-5 dark:text-dark-6">
         <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-primary border-t-transparent" />
-        Loading session settings...
+        Loading agent settings...
       </div>
     );
   }
@@ -179,7 +179,7 @@ export function KbArticleEditor({ sessionId, articleId }: Props) {
       <div>
         <h2 className="text-lg font-semibold text-dark dark:text-white">Knowledgebase Article</h2>
         <div className="mt-1 text-sm text-dark-5 dark:text-dark-6">
-          Session:{" "}
+          Agent:{" "}
           <span className="font-medium text-dark dark:text-white">{session?.name ?? resolvedSessionId}</span>
           <span className="mx-2">|</span>
           ID:{" "}
