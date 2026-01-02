@@ -17,7 +17,11 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
     }
 
     const isAuthRoute = pathname?.startsWith("/auth");
-    const isPublicRoute = pathname === "/";
+    const isPublicRoute =
+      pathname === "/" ||
+      pathname?.startsWith("/terms") ||
+      pathname?.startsWith("/payment-success") ||
+      pathname?.startsWith("/payment-failure");
 
     if (isAuthRoute || isPublicRoute) {
       redirectInFlightRef.current = false;

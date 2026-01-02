@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { OverviewCardsGroup } from "@/app/(home)/_components/overview-cards";
 import { SessionsCard } from "@/app/(home)/_components/sessions-card";
 
@@ -6,7 +7,29 @@ export const metadata: Metadata = {
   title: "Dashboard",
 };
 
-export default function DashboardPage() {
+type DashboardPageProps = {
+  searchParams?: Promise<{ payment?: string | string[] }>;
+};
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const paymentParam = resolvedSearchParams?.payment;
+  const rawPayment = Array.isArray(paymentParam) ? paymentParam[0] : paymentParam;
+  const normalizedPayment = rawPayment?.toLowerCase();
+
+  if (normalizedPayment === "success") {
+    redirect("/payment-success");
+  }
+
+  if (
+    normalizedPayment === "cancel" ||
+    normalizedPayment === "canceled" ||
+    normalizedPayment === "failed" ||
+    normalizedPayment === "failure"
+  ) {
+    redirect("/payment-failure");
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div>

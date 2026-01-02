@@ -227,10 +227,17 @@ export async function recordUserWalletUsage(
   return normalized;
 }
 
-export async function createCheckoutSession(userId: string, options: { quantity: number }) {
+export async function createCheckoutSession(
+  userId: string,
+  options: { quantity: number; successUrl?: string; cancelUrl?: string },
+) {
   const endpoint = getPaymentsEndpoint();
   const resolvedUserId = String(userId ?? "").trim();
   const resolvedQty = Number(options?.quantity);
+  const successUrl =
+    typeof options?.successUrl === "string" ? options.successUrl.trim() : "";
+  const cancelUrl =
+    typeof options?.cancelUrl === "string" ? options.cancelUrl.trim() : "";
   if (!endpoint) {
     throw new Error("Payments endpoint is not configured.");
   }
@@ -241,22 +248,31 @@ export async function createCheckoutSession(userId: string, options: { quantity:
     throw new Error("Quantity must be a positive number.");
   }
 
+  const payload = {
+    user_id: resolvedUserId,
+    quantity: resolvedQty,
+    ...(successUrl ? { success_url: successUrl } : {}),
+    ...(cancelUrl ? { cancel_url: cancelUrl } : {}),
+  };
+
   const res = await fetch(joinUrl(endpoint, "/create-checkout-session"), {
     method: "POST",
     headers: await buildHeaders("application/json"),
-    body: JSON.stringify({ user_id: resolvedUserId, quantity: resolvedQty }),
+    body: JSON.stringify(payload),
   });
 
-  const payload = await readJsonSafely(res);
+  const responsePayload = await readJsonSafely(res);
   if (!res.ok) {
     const message =
-      payload && typeof payload === "object" && ("message" in payload || "error" in payload)
-        ? String((payload as any).message ?? (payload as any).error)
+      responsePayload &&
+      typeof responsePayload === "object" &&
+      ("message" in responsePayload || "error" in responsePayload)
+        ? String((responsePayload as any).message ?? (responsePayload as any).error)
         : `Failed to create checkout session (status ${res.status})`;
     throw new Error(message);
   }
 
-  return payload as { sessionId?: string; session_id?: string; [key: string]: unknown };
+  return responsePayload as { sessionId?: string; session_id?: string; [key: string]: unknown };
 }
 
 export async function createSetupIntent(userId: string) {

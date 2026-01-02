@@ -16,7 +16,7 @@ const stripePromise = STRIPE_PUBLISHABLE_KEY ? loadStripe(STRIPE_PUBLISHABLE_KEY
 
 const MAX_CHECKOUT_PACKAGES = 99;
 const FALLBACK_PACKAGE_TOKENS = 1_000_000;
-const FALLBACK_PACKAGE_PRICE_CENTS = 300;
+const FALLBACK_PACKAGE_PRICE_CENTS = 400;
 const FALLBACK_PACKAGE_CURRENCY = "USD";
 
 function formatTokenCount(value: unknown) {
@@ -262,7 +262,14 @@ export function TokenWalletPanel({ userId, wallet, loading, onWalletUpdated, onR
     setBuying(true);
     setPanelError(null);
     try {
-      const payload = await createCheckoutSession(userId, { quantity: checkoutPackageQty });
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const successUrl = origin ? `${origin}/payment-success` : undefined;
+      const cancelUrl = origin ? `${origin}/payment-failure` : undefined;
+      const payload = await createCheckoutSession(userId, {
+        quantity: checkoutPackageQty,
+        successUrl,
+        cancelUrl,
+      });
       const sessionId =
         typeof payload?.sessionId === "string" && payload.sessionId.trim()
           ? payload.sessionId.trim()

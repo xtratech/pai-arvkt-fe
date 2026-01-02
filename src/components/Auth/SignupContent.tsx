@@ -50,6 +50,14 @@ export function SignupContent() {
           </Link>
         </p>
       </div>
+
+      <div className="mt-3 text-center text-xs text-dark-5 dark:text-dark-6">
+        By using the system, logging in, or signing up, you agree to the{" "}
+        <Link href="/terms" className="text-primary underline-offset-2 hover:underline">
+          Terms and Conditions
+        </Link>
+        .
+      </div>
     </div>
   );
 }
