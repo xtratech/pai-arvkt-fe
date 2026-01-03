@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import ReactMarkdown, { type Components as MarkdownComponents } from "react-markdown";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useUser } from "@/contexts/user-context";
@@ -54,6 +55,77 @@ type CreatorDraftPayload = {
 };
 
 const ANALYZER_CONFIDENCE_THRESHOLD = 0.8;
+const ARTICLE_DETAIL_FIELDS = [
+  { key: "IntranetStatus", label: "Intranet Status" },
+  { key: "WhatsAppStatus", label: "WhatsApp Status" },
+  { key: "VoiceCallStatus", label: "Voice Call Status" },
+  { key: "WebStatus", label: "Web Status" },
+  { key: "AccessLevel", label: "Access Level" },
+  { key: "Channel", label: "Channel" },
+] as const;
+const CREATE_DETAIL_FIELDS = [
+  { key: "IntranetStatus", label: "Intranet Status" },
+  { key: "WhatsAppStatus", label: "WhatsApp Status" },
+  { key: "VoiceCallStatus", label: "Voice Call Status" },
+  { key: "WebStatus", label: "Web Status" },
+  { key: "AccessLevel", label: "Access Level" },
+] as const;
+const ARTICLE_DETAIL_FIELD_KEYS = new Set<string>(ARTICLE_DETAIL_FIELDS.map((field) => field.key));
+const MULTI_VALUE_FIELDS = new Set(["Channel"]);
+const READ_ONLY_FIELDS = new Set(["LastModifiedTime", "Created", "UniqueID"]);
+const HIDDEN_FIELDS = new Set(["IntranetGPTFileID", "Category"]);
+
+const DRAFT_MARKDOWN_COMPONENTS: MarkdownComponents = {
+  p({ children }) {
+    return <p className="mb-2 last:mb-0">{children}</p>;
+  },
+  ul({ children }) {
+    return <ul className="mb-2 list-disc pl-5 last:mb-0">{children}</ul>;
+  },
+  ol({ children }) {
+    return <ol className="mb-2 list-decimal pl-5 last:mb-0">{children}</ol>;
+  },
+  li({ children }) {
+    return <li className="mb-1 last:mb-0">{children}</li>;
+  },
+  a({ href, children }) {
+    if (!href) {
+      return <span className="underline">{children}</span>;
+    }
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className="text-primary underline decoration-primary/40 underline-offset-2 hover:opacity-90"
+      >
+        {children}
+      </a>
+    );
+  },
+  code({ children, className }) {
+    const isInline = !className;
+    if (isInline) {
+      return (
+        <code className="rounded bg-gray-2 px-1 py-0.5 font-mono text-[12px] text-dark dark:bg-dark-3 dark:text-white">
+          {children}
+        </code>
+      );
+    }
+    return (
+      <code className="block whitespace-pre font-mono text-[12px] text-dark dark:text-white">
+        {children}
+      </code>
+    );
+  },
+  pre({ children }) {
+    return (
+      <pre className="custom-scrollbar mb-2 overflow-x-auto rounded-lg bg-gray-2 p-3 dark:bg-dark-3">
+        {children}
+      </pre>
+    );
+  },
+};
 
 function createUuidV4() {
   const cryptoObj = (globalThis as Record<string, unknown>).crypto as { randomUUID?: () => string } | undefined;
@@ -406,15 +478,33 @@ function getFirstString(record: SourceArticleRecord, keys: string[]) {
   return "";
 }
 
+function normalizeFieldOptions(input: unknown) {
+  if (!input || typeof input !== "object") return null;
+  const record = input as Record<string, unknown>;
+  const normalized: Record<string, string[]> = {};
+  for (const [key, value] of Object.entries(record)) {
+    if (!Array.isArray(value)) continue;
+    const options = value
+      .map((entry) => (typeof entry === "string" ? entry.trim() : String(entry)))
+      .filter(Boolean);
+    if (options.length) {
+      normalized[key] = options;
+    }
+  }
+  return Object.keys(normalized).length ? normalized : null;
+}
+
 function formatUpdatedAt(record: SourceArticleRecord) {
   const candidates = [
     "LastModifiedTime",
+    "LastUpdated",
     "updated_at",
     "updatedAt",
     "last_modified",
     "lastModified",
     "modified_at",
     "modifiedAt",
+    "created_time",
   ];
   const value = getFirstString(record, candidates);
   if (!value) return "-";
@@ -442,6 +532,109 @@ function extractCreatedId(payload: unknown): string | null {
   }
 
   return null;
+}
+
+function stripReservedArticleKeys(record: Record<string, unknown>) {
+  const reserved = new Set([
+    "id",
+    "ID",
+    "source_id",
+    "sourceId",
+    "title",
+    "Title",
+    "source_title",
+    "sourceTitle",
+    "content",
+    "Content",
+    "body",
+    "Body",
+    "article_body",
+    "articleBody",
+    "content_markdown",
+    "contentMarkdown",
+    "markdown",
+    "Markdown",
+    "text",
+    "Text",
+  ]);
+
+  const filtered: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(record)) {
+    if (reserved.has(key)) {
+      continue;
+    }
+    filtered[key] = value;
+  }
+  return filtered;
+}
+
+function resolveArticleFields(record: Record<string, unknown>) {
+  const candidate = record.fields;
+  if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
+    return candidate as Record<string, unknown>;
+  }
+  return record;
+}
+
+type EditableFieldValue = string | string[];
+
+function getDefaultCreateFieldValues() {
+  const defaults: Record<string, EditableFieldValue> = {};
+  for (const field of CREATE_DETAIL_FIELDS) {
+    if (field.key.endsWith("Status")) {
+      defaults[field.key] = "Draft";
+      continue;
+    }
+    if (field.key === "AccessLevel") {
+      defaults[field.key] = "Private";
+      continue;
+    }
+    defaults[field.key] = "";
+  }
+  return defaults;
+}
+
+function normalizeEditableFieldValue(value: unknown): EditableFieldValue {
+  if (Array.isArray(value)) {
+    return value.map((entry) => (typeof entry === "string" ? entry.trim() : String(entry))).filter(Boolean);
+  }
+  if (value === null || typeof value === "undefined") return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function normalizeEditableFields(record: Record<string, unknown>) {
+  const stripped = stripReservedArticleKeys(record);
+  const normalized: Record<string, EditableFieldValue> = {};
+  for (const [key, value] of Object.entries(stripped)) {
+    if (HIDDEN_FIELDS.has(key)) {
+      continue;
+    }
+    normalized[key] = normalizeEditableFieldValue(value);
+  }
+  return normalized;
+}
+
+function hasEditableFieldValue(value: EditableFieldValue) {
+  if (Array.isArray(value)) return value.length > 0;
+  return value.trim().length > 0;
+}
+
+function parseCommaList(input: string) {
+  return input
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function normalizeStringArray(value: EditableFieldValue) {
+  if (Array.isArray(value)) return value;
+  return parseCommaList(value);
 }
 
 export function KbArticlesContent({ sessionId }: Props) {
@@ -541,13 +734,15 @@ export function KbArticlesContent({ sessionId }: Props) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [intranetStatus, setIntranetStatus] = useState("");
   const [whatsAppStatus, setWhatsAppStatus] = useState("");
-  const [zendeskStatus, setZendeskStatus] = useState("");
+  const [voiceCallStatus, setVoiceCallStatus] = useState("");
+  const [webStatus, setWebStatus] = useState("");
   const [accessLevel, setAccessLevel] = useState("");
   const [channel, setChannel] = useState("");
   const [ids, setIds] = useState("");
 
   const [articles, setArticles] = useState<SourceArticleRecord[]>([]);
   const [totalCount, setTotalCount] = useState<number | null>(null);
+  const [fieldOptions, setFieldOptions] = useState<Record<string, string[]> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -557,15 +752,16 @@ export function KbArticlesContent({ sessionId }: Props) {
 
   const filters = useMemo<SourceArticlesFilters>(
     () => ({
-      q: query,
+      query,
       IntranetStatus: parseCsvFilter(intranetStatus),
       WhatsAppStatus: parseCsvFilter(whatsAppStatus),
-      ZendeskStatus: parseCsvFilter(zendeskStatus),
+      VoiceCallStatus: parseCsvFilter(voiceCallStatus),
+      WebStatus: parseCsvFilter(webStatus),
       AccessLevel: parseCsvFilter(accessLevel),
       Channel: parseCsvFilter(channel),
       ids: parseCsvFilter(ids),
     }),
-    [accessLevel, channel, ids, intranetStatus, query, whatsAppStatus, zendeskStatus],
+    [accessLevel, channel, ids, intranetStatus, query, voiceCallStatus, webStatus, whatsAppStatus],
   );
 
   const loadArticles = useCallback(
@@ -579,7 +775,7 @@ export function KbArticlesContent({ sessionId }: Props) {
       setLoading(true);
       setError(null);
       try {
-        const { articles: fetched, count } = await fetchSourceArticles({
+        const { articles: fetched, count, raw } = await fetchSourceArticles({
           kbEndpoint,
           apiKeyName: kbKeyName,
           apiKeyValue: kbKeyValue,
@@ -589,6 +785,8 @@ export function KbArticlesContent({ sessionId }: Props) {
         });
         setArticles(fetched);
         setTotalCount(count ?? fetched.length);
+        const options = normalizeFieldOptions((raw as any)?.field_options);
+        setFieldOptions(options);
       } catch (err) {
         const name = (err as { name?: string } | null)?.name;
         if (name === "AbortError") {
@@ -653,7 +851,8 @@ export function KbArticlesContent({ sessionId }: Props) {
     query.trim() ||
       intranetStatus.trim() ||
       whatsAppStatus.trim() ||
-      zendeskStatus.trim() ||
+      voiceCallStatus.trim() ||
+      webStatus.trim() ||
       accessLevel.trim() ||
       channel.trim() ||
       ids.trim(),
@@ -663,7 +862,8 @@ export function KbArticlesContent({ sessionId }: Props) {
     setQuery("");
     setIntranetStatus("");
     setWhatsAppStatus("");
-    setZendeskStatus("");
+    setVoiceCallStatus("");
+    setWebStatus("");
     setAccessLevel("");
     setChannel("");
     setIds("");
@@ -692,6 +892,11 @@ export function KbArticlesContent({ sessionId }: Props) {
   const [createSurpriseLoading, setCreateSurpriseLoading] = useState(false);
   const [createTitle, setCreateTitle] = useState("");
   const [createContent, setCreateContent] = useState("");
+  const [createFieldValues, setCreateFieldValues] = useState<Record<string, EditableFieldValue>>(
+    () => getDefaultCreateFieldValues(),
+  );
+  const [createDetailsOpen, setCreateDetailsOpen] = useState(false);
+  const [createPreviewMarkdown, setCreatePreviewMarkdown] = useState(false);
   const [createAnalyzing, setCreateAnalyzing] = useState(false);
   const [createSaving, setCreateSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -701,16 +906,27 @@ export function KbArticlesContent({ sessionId }: Props) {
   const [editId, setEditId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
+  const [editFieldValues, setEditFieldValues] = useState<Record<string, EditableFieldValue>>({});
+  const [editDetailsOpen, setEditDetailsOpen] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const editFieldOriginalKeys = useRef<Set<string>>(new Set());
+
+  const handleEditFieldChange = useCallback((key: string, value: EditableFieldValue) => {
+    setEditFieldValues((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  const handleCreateFieldChange = useCallback((key: string, value: EditableFieldValue) => {
+    setCreateFieldValues((prev) => ({ ...prev, [key]: value }));
+  }, []);
 
   const sourceArticleEndpoint = useMemo(() => resolveSourceArticleEndpoint(kbEndpoint), [kbEndpoint]);
 
-  const handleOpenCreate = useCallback(() => {
+  const resetCreateState = useCallback((step: DraftWizardStep) => {
     setCreateError(null);
     setCreateSuccess(null);
-    setCreateStep("idea");
+    setCreateStep(step);
     setCreateIdea("");
     setCreateProcessingLabel("");
     setCreateAnalyzerSegments(null);
@@ -723,11 +939,22 @@ export function KbArticlesContent({ sessionId }: Props) {
     setCreateSurpriseLoading(false);
     setCreateTitle("");
     setCreateContent("");
+    setCreateFieldValues(getDefaultCreateFieldValues());
+    setCreateDetailsOpen(false);
+    setCreatePreviewMarkdown(false);
     setCreateAnalyzing(false);
     analyzerJobRef.current = null;
     draftSupportJobRef.current = null;
     setCreateOpen(true);
   }, []);
+
+  const handleOpenCreate = useCallback(() => {
+    resetCreateState("idea");
+  }, [resetCreateState]);
+
+  const handleOpenManualCreate = useCallback(() => {
+    resetCreateState("editor");
+  }, [resetCreateState]);
 
   const createAbortRef = useRef<AbortController | null>(null);
   const analyzerJobRef = useRef<{ payloadKey: string; asyncJobId: string } | null>(null);
@@ -751,6 +978,9 @@ export function KbArticlesContent({ sessionId }: Props) {
     setCreateSurpriseLoading(false);
     setCreateTitle("");
     setCreateContent("");
+    setCreateFieldValues(getDefaultCreateFieldValues());
+    setCreateDetailsOpen(false);
+    setCreatePreviewMarkdown(false);
     analyzerJobRef.current = null;
     draftSupportJobRef.current = null;
   }, [createAnalyzing, createSaving]);
@@ -813,8 +1043,25 @@ export function KbArticlesContent({ sessionId }: Props) {
             ? (candidate as any).article
             : candidate;
 
-        setEditTitle(deriveArticleTitle(articleObj));
-        setEditContent(deriveArticleContent(articleObj));
+        const normalizedArticle =
+          articleObj && typeof articleObj === "object" ? (articleObj as Record<string, unknown>) : {};
+        const articleFields = resolveArticleFields(normalizedArticle);
+        setEditTitle(deriveArticleTitle(articleFields));
+        setEditContent(deriveArticleContent(articleFields));
+
+        const normalizedFields = normalizeEditableFields(articleFields);
+        for (const field of ARTICLE_DETAIL_FIELDS) {
+          if (!(field.key in normalizedFields)) {
+            normalizedFields[field.key] = MULTI_VALUE_FIELDS.has(field.key) ? [] : "";
+          }
+        }
+
+        setEditFieldValues(normalizedFields);
+        editFieldOriginalKeys.current = new Set(
+          Object.entries(normalizedFields)
+            .filter(([, value]) => hasEditableFieldValue(value))
+            .map(([key]) => key),
+        );
       } catch (err) {
         const name = (err as { name?: string } | null)?.name;
         if (name === "AbortError" || controller.signal.aborted) {
@@ -834,9 +1081,12 @@ export function KbArticlesContent({ sessionId }: Props) {
       if (!id) return;
       setCreateSuccess(null);
       setEditError(null);
+      setEditDetailsOpen(false);
       setEditId(id);
       setEditTitle("");
       setEditContent("");
+      setEditFieldValues({});
+      editFieldOriginalKeys.current = new Set();
       setEditOpen(true);
       void loadEditArticle(id);
     },
@@ -851,6 +1101,9 @@ export function KbArticlesContent({ sessionId }: Props) {
     setEditId(null);
     setEditTitle("");
     setEditContent("");
+    setEditFieldValues({});
+    setEditDetailsOpen(false);
+    editFieldOriginalKeys.current = new Set();
   }, [editSaving]);
 
   const handleSaveEdit = useCallback(async () => {
@@ -874,6 +1127,30 @@ export function KbArticlesContent({ sessionId }: Props) {
       return;
     }
 
+    const extraPayload: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(editFieldValues)) {
+      if (READ_ONLY_FIELDS.has(key)) {
+        continue;
+      }
+      const wasOriginal = editFieldOriginalKeys.current.has(key);
+      if (Array.isArray(value)) {
+        const cleaned = value.map((entry) => entry.trim()).filter(Boolean);
+        if (cleaned.length || wasOriginal) {
+          extraPayload[key] = cleaned;
+        }
+        continue;
+      }
+      const trimmed = value.trim();
+      if (trimmed.length || wasOriginal) {
+        extraPayload[key] = trimmed;
+      }
+    }
+    const fieldsPayload = {
+      ...extraPayload,
+      Title: title,
+      Content: content,
+    };
+
     setEditSaving(true);
     setEditError(null);
     try {
@@ -891,7 +1168,7 @@ export function KbArticlesContent({ sessionId }: Props) {
       const res = await fetch(sourceArticleEndpoint, {
         method: "PUT",
         headers,
-        body: JSON.stringify({ id: editId, title, content }),
+        body: JSON.stringify({ id: editId, fields: fieldsPayload }),
       });
       const payload = await res.json().catch(async () => {
         const text = await res.text().catch(() => "");
@@ -917,6 +1194,7 @@ export function KbArticlesContent({ sessionId }: Props) {
   }, [
     authHeader,
     editContent,
+    editFieldValues,
     editId,
     editTitle,
     filters,
@@ -1295,11 +1573,32 @@ export function KbArticlesContent({ sessionId }: Props) {
       if (kbKeyValue) {
         headers[kbKeyName] = kbKeyValue;
       }
+      if (authHeader) {
+        headers.Authorization = authHeader;
+      }
+
+      const fieldsPayload: Record<string, unknown> = { Title: title, Content: content };
+      for (const [key, value] of Object.entries(createFieldValues)) {
+        if (READ_ONLY_FIELDS.has(key) || HIDDEN_FIELDS.has(key)) {
+          continue;
+        }
+        if (Array.isArray(value)) {
+          const cleaned = value.map((entry) => entry.trim()).filter(Boolean);
+          if (cleaned.length) {
+            fieldsPayload[key] = cleaned;
+          }
+          continue;
+        }
+        const trimmed = value.trim();
+        if (trimmed) {
+          fieldsPayload[key] = trimmed;
+        }
+      }
 
       const res = await fetch(sourceArticleEndpoint, {
         method: "POST",
         headers,
-        body: JSON.stringify({ title, content }),
+        body: JSON.stringify({ fields: fieldsPayload }),
       });
       const payload = await res.json().catch(() => null as any);
 
@@ -1323,6 +1622,7 @@ export function KbArticlesContent({ sessionId }: Props) {
   }, [
     authHeader,
     createContent,
+    createFieldValues,
     createDraftAnalysis,
     createDraftReviewConfirmed,
     createTitle,
@@ -1472,7 +1772,14 @@ export function KbArticlesContent({ sessionId }: Props) {
             onClick={handleOpenCreate}
             className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90"
           >
-            Add New
+            Add With AI
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenManualCreate}
+            className="rounded-lg border border-stroke px-4 py-2 text-xs font-semibold uppercase tracking-wide text-dark transition hover:bg-gray-2 dark:border-dark-3 dark:text-white dark:hover:bg-dark-2"
+          >
+            Add
           </button>
           <button
             type="button"
@@ -1556,9 +1863,16 @@ export function KbArticlesContent({ sessionId }: Props) {
             />
             <input
               type="text"
-              value={zendeskStatus}
-              onChange={(event) => setZendeskStatus(event.target.value)}
-              placeholder="ZendeskStatus (comma-separated)"
+              value={voiceCallStatus}
+              onChange={(event) => setVoiceCallStatus(event.target.value)}
+              placeholder="VoiceCallStatus (comma-separated)"
+              className="w-full rounded-lg border border-stroke bg-transparent px-3 py-2 text-xs text-dark outline-none transition focus:border-primary dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+            />
+            <input
+              type="text"
+              value={webStatus}
+              onChange={(event) => setWebStatus(event.target.value)}
+              placeholder="WebStatus (comma-separated)"
               className="w-full rounded-lg border border-stroke bg-transparent px-3 py-2 text-xs text-dark outline-none transition focus:border-primary dark:border-dark-3 dark:bg-dark-2 dark:text-white"
             />
             <input
@@ -1599,7 +1913,8 @@ export function KbArticlesContent({ sessionId }: Props) {
               <th className="px-4 py-3">Title</th>
               <th className="px-4 py-3">IntranetStatus</th>
               <th className="px-4 py-3">WhatsAppStatus</th>
-              <th className="px-4 py-3">ZendeskStatus</th>
+              <th className="px-4 py-3">VoiceCallStatus</th>
+              <th className="px-4 py-3">WebStatus</th>
               <th className="px-4 py-3">AccessLevel</th>
               <th className="px-4 py-3">Channel</th>
               <th className="px-4 py-3">Last Modified</th>
@@ -1610,40 +1925,33 @@ export function KbArticlesContent({ sessionId }: Props) {
               const title = getFirstString(article, ["Title", "title", "source_title", "name"]) || "(Untitled)";
               const id =
                 getFirstString(article, ["id", "UniqueID", "source_id", "record_id", "recordId"]) || "";
-              const intranet = getFirstString(article, ["IntranetStatus", "intranet_status", "intranetStatus"]) || "—";
-              const whatsapp = getFirstString(article, ["WhatsAppStatus", "whatsapp_status", "whatsAppStatus"]) || "—";
-              const zendesk = getFirstString(article, ["ZendeskStatus", "zendesk_status", "zendeskStatus"]) || "—";
-              const access = getFirstString(article, ["AccessLevel", "access_level", "accessLevel"]) || "—";
-              const channelValue = getFirstString(article, ["Channel", "channel"]) || "—";
+              const intranet = getFirstString(article, ["IntranetStatus", "intranet_status", "intranetStatus"]) || "--";
+              const whatsapp = getFirstString(article, ["WhatsAppStatus", "whatsapp_status", "whatsAppStatus"]) || "--";
+              const voiceCall = getFirstString(article, ["VoiceCallStatus", "voice_call_status", "voiceCallStatus"]) || "--";
+              const web = getFirstString(article, ["WebStatus", "web_status", "webStatus"]) || "--";
+              const access = getFirstString(article, ["AccessLevel", "access_level", "accessLevel"]) || "--";
+              const channelValue = getFirstString(article, ["Channel", "channel"]) || "--";
               const updated = formatUpdatedAt(article);
 
               return (
                 <tr key={`${id || "article"}-${index}`}>
                   <td className="px-4 py-3 font-medium text-dark dark:text-white">
                     {id ? (
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(id)}
-                          className="text-left text-primary underline-offset-2 hover:underline"
-                        >
-                          {title}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(id)}
-                          className="rounded-md border border-stroke px-3 py-1 text-xs font-semibold uppercase tracking-wide text-dark transition hover:bg-gray-2 dark:border-dark-3 dark:text-white dark:hover:bg-dark-2"
-                        >
-                          Edit
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(id)}
+                        className="text-left text-primary underline-offset-2 hover:underline"
+                      >
+                        {title}
+                      </button>
                     ) : (
                       title
                     )}
                   </td>
                   <td className="px-4 py-3 text-dark-5 dark:text-dark-6">{intranet}</td>
                   <td className="px-4 py-3 text-dark-5 dark:text-dark-6">{whatsapp}</td>
-                  <td className="px-4 py-3 text-dark-5 dark:text-dark-6">{zendesk}</td>
+                  <td className="px-4 py-3 text-dark-5 dark:text-dark-6">{voiceCall}</td>
+                  <td className="px-4 py-3 text-dark-5 dark:text-dark-6">{web}</td>
                   <td className="px-4 py-3 text-dark-5 dark:text-dark-6">{access}</td>
                   <td className="px-4 py-3 text-dark-5 dark:text-dark-6">{channelValue}</td>
                   <td className="px-4 py-3 text-dark-5 dark:text-dark-6">{updated}</td>
@@ -1653,7 +1961,7 @@ export function KbArticlesContent({ sessionId }: Props) {
 
             {!loading && articles.length === 0 ? (
               <tr>
-                <td className="px-4 py-3 text-sm text-dark-5 dark:text-dark-6" colSpan={7}>
+                <td className="px-4 py-3 text-sm text-dark-5 dark:text-dark-6" colSpan={8}>
                   No knowledgebase articles found for the current filters.
                 </td>
               </tr>
@@ -1672,7 +1980,7 @@ export function KbArticlesContent({ sessionId }: Props) {
               onClick={handleCloseCreate}
             >
               <div
-                className="w-full max-w-3xl rounded-xl bg-white p-5 shadow-2xl dark:bg-dark-2"
+                className="w-full max-w-[58rem] rounded-xl bg-white p-5 shadow-2xl dark:bg-dark-2"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1856,23 +2164,118 @@ export function KbArticlesContent({ sessionId }: Props) {
                   />
                 </div>
 
+                <div className="mt-4 rounded-lg border border-stroke bg-gray-1/40 p-4 dark:border-dark-3 dark:bg-dark-3/30">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                        Article Settings
+                      </div>
+                      <div className="mt-1 text-xs text-dark-5 dark:text-dark-6">
+                        Set status and access level values for this article.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCreateDetailsOpen((prev) => !prev)}
+                      className="rounded-full border border-stroke px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-dark transition hover:bg-gray-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:text-white dark:hover:bg-dark-3"
+                      disabled={createSaving}
+                    >
+                      {createDetailsOpen ? "Hide" : "Show"}
+                    </button>
+                  </div>
+                  {createDetailsOpen ? (
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      {CREATE_DETAIL_FIELDS.map((field) => {
+                        const value = createFieldValues[field.key] ?? "";
+                        const stringValue = Array.isArray(value) ? value.join(", ") : value;
+                        const options = fieldOptions?.[field.key] ?? [];
+
+                        if (options.length) {
+                          const uniqueOptions = Array.from(
+                            new Set(stringValue ? [stringValue, ...options] : options),
+                          );
+                          return (
+                            <div key={field.key} className="space-y-2">
+                              <label className="text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                                {field.label}
+                              </label>
+                              <select
+                                value={stringValue}
+                                onChange={(event) => handleCreateFieldChange(field.key, event.target.value)}
+                                className="w-full rounded-lg border border-stroke bg-white px-3 py-2 text-xs text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                                disabled={createSaving}
+                              >
+                                <option value="">Not set</option>
+                                {uniqueOptions.map((option) => (
+                                  <option key={option} value={option}>
+                                    {option}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div key={field.key} className="space-y-2">
+                            <label className="text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                              {field.label}
+                            </label>
+                            <input
+                              type="text"
+                              value={stringValue}
+                              onChange={(event) => handleCreateFieldChange(field.key, event.target.value)}
+                              className="w-full rounded-lg border border-stroke bg-white px-3 py-2 text-xs text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                              disabled={createSaving}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+
                 <div className="mt-4">
-                  <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
-                    Content
-                  </label>
-                  <textarea
-                    value={createContent}
-                    onChange={(e) => {
-                      setCreateContent(e.target.value);
-                      if (createDraftAnalysis) {
-                        setCreateDraftAnalysis(null);
-                        setCreateDraftReviewConfirmed(false);
-                      }
-                    }}
-                    className="custom-scrollbar h-80 w-full resize-none rounded-lg border border-stroke bg-white px-3 py-2 text-sm text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-                    placeholder="Review and refine the draft (Markdown is supported)."
-                    disabled={createSaving}
-                  />
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <label className="block text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                      Content
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setCreatePreviewMarkdown((prev) => !prev)}
+                      className="rounded-full border border-stroke px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-dark transition hover:bg-gray-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:text-white dark:hover:bg-dark-3"
+                      disabled={createSaving}
+                    >
+                      {createPreviewMarkdown ? "Edit Markdown" : "Preview Markdown"}
+                    </button>
+                  </div>
+                  {createPreviewMarkdown ? (
+                    <div className="custom-scrollbar h-40 w-full overflow-auto rounded-lg border border-stroke bg-white px-3 py-2 text-sm text-dark transition dark:border-dark-3 dark:bg-dark-2 dark:text-white">
+                      {createContent.trim() ? (
+                        <ReactMarkdown components={DRAFT_MARKDOWN_COMPONENTS}>
+                          {createContent}
+                        </ReactMarkdown>
+                      ) : (
+                        <div className="text-sm text-dark-5 dark:text-dark-6">
+                          No content to preview yet.
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <textarea
+                      value={createContent}
+                      onChange={(e) => {
+                        setCreateContent(e.target.value);
+                        if (createDraftAnalysis) {
+                          setCreateDraftAnalysis(null);
+                          setCreateDraftReviewConfirmed(false);
+                        }
+                      }}
+                      className="custom-scrollbar h-40 w-full resize-none rounded-lg border border-stroke bg-white px-3 py-2 text-sm text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                      placeholder="Review and refine the draft (Markdown is supported)."
+                      disabled={createSaving}
+                    />
+                  )}
                 </div>
 
                 <div className="mt-4 rounded-lg border border-stroke bg-gray-2/40 p-4 dark:border-dark-3 dark:bg-dark-3/30">
@@ -1981,53 +2384,59 @@ export function KbArticlesContent({ sessionId }: Props) {
 
                   {createDraftMeta ? (
                     <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
+                      <div className="flex h-28 flex-col rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
                         <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
                           Sources Used
                         </div>
-                        {createDraftMeta.source_ids_and_titles_used.length ? (
-                          <ul className="mt-2 space-y-1 text-xs text-dark dark:text-white">
-                            {createDraftMeta.source_ids_and_titles_used.map((entry, idx) => (
-                              <li key={`src-${idx}`} className="break-words">
-                                {entry}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <div className="mt-2 text-xs text-dark-5 dark:text-dark-6">No sources returned.</div>
-                        )}
+                        <div className="custom-scrollbar mt-2 flex-1 overflow-auto pr-1">
+                          {createDraftMeta.source_ids_and_titles_used.length ? (
+                            <ul className="space-y-1 text-xs text-dark dark:text-white">
+                              {createDraftMeta.source_ids_and_titles_used.map((entry, idx) => (
+                                <li key={`src-${idx}`} className="break-words">
+                                  {entry}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <div className="text-xs text-dark-5 dark:text-dark-6">No sources returned.</div>
+                          )}
+                        </div>
                       </div>
-                      <div className="rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
+                      <div className="flex h-28 flex-col rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
                         <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
                           Assumptions
                         </div>
-                        {createDraftMeta.assumptions.length ? (
-                          <ul className="mt-2 space-y-1 text-xs text-dark dark:text-white">
-                            {createDraftMeta.assumptions.map((entry, idx) => (
-                              <li key={`asm-${idx}`} className="break-words">
-                                {entry}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <div className="mt-2 text-xs text-dark-5 dark:text-dark-6">No assumptions returned.</div>
-                        )}
+                        <div className="custom-scrollbar mt-2 flex-1 overflow-auto pr-1">
+                          {createDraftMeta.assumptions.length ? (
+                            <ul className="space-y-1 text-xs text-dark dark:text-white">
+                              {createDraftMeta.assumptions.map((entry, idx) => (
+                                <li key={`asm-${idx}`} className="break-words">
+                                  {entry}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <div className="text-xs text-dark-5 dark:text-dark-6">No assumptions returned.</div>
+                          )}
+                        </div>
                       </div>
-                      <div className="rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
+                      <div className="flex h-28 flex-col rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
                         <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
                           Open Questions
                         </div>
-                        {createDraftMeta.open_questions.length ? (
-                          <ul className="mt-2 space-y-1 text-xs text-dark dark:text-white">
-                            {createDraftMeta.open_questions.map((entry, idx) => (
-                              <li key={`oq-${idx}`} className="break-words">
-                                {entry}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <div className="mt-2 text-xs text-dark-5 dark:text-dark-6">No open questions returned.</div>
-                        )}
+                        <div className="custom-scrollbar mt-2 flex-1 overflow-auto pr-1">
+                          {createDraftMeta.open_questions.length ? (
+                            <ul className="space-y-1 text-xs text-dark dark:text-white">
+                              {createDraftMeta.open_questions.map((entry, idx) => (
+                                <li key={`oq-${idx}`} className="break-words">
+                                  {entry}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <div className="text-xs text-dark-5 dark:text-dark-6">No open questions returned.</div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ) : null}
@@ -2128,6 +2537,164 @@ export function KbArticlesContent({ sessionId }: Props) {
                 placeholder="Article title"
                 disabled={editLoading || editSaving}
               />
+            </div>
+
+            <div className="mt-4 rounded-lg border border-stroke bg-gray-1/40 p-4 dark:border-dark-3 dark:bg-dark-3/30">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                    Details
+                  </div>
+                  <div className="mt-1 text-xs text-dark-5 dark:text-dark-6">
+                    Edit status, access, and channel fields.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditDetailsOpen((prev) => !prev)}
+                  className="rounded-full border border-stroke px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-dark transition hover:bg-gray-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:text-white dark:hover:bg-dark-3"
+                  disabled={editLoading || editSaving}
+                >
+                  {editDetailsOpen ? "Hide" : "Show"}
+                </button>
+              </div>
+              {editDetailsOpen ? (
+                <div className="mt-4 space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {ARTICLE_DETAIL_FIELDS.map((field) => {
+                      const value = editFieldValues[field.key] ?? (MULTI_VALUE_FIELDS.has(field.key) ? [] : "");
+                      const options = fieldOptions?.[field.key] ?? [];
+
+                      if (MULTI_VALUE_FIELDS.has(field.key)) {
+                        const selected = normalizeStringArray(value);
+                        if (options.length) {
+                          return (
+                            <div key={field.key} className="space-y-2">
+                              <div className="text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                                {field.label}
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {options.map((option) => {
+                                  const checked = selected.includes(option);
+                                  return (
+                                    <label
+                                      key={option}
+                                      className="flex items-center gap-2 rounded-full border border-stroke px-3 py-1 text-xs text-dark transition hover:bg-gray-2 dark:border-dark-3 dark:text-white dark:hover:bg-dark-3"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        className="h-3.5 w-3.5 rounded border-stroke text-primary focus:ring-primary dark:border-dark-3"
+                                        checked={checked}
+                                        onChange={() => {
+                                          const next = checked
+                                            ? selected.filter((item) => item !== option)
+                                            : [...selected, option];
+                                          handleEditFieldChange(field.key, next);
+                                        }}
+                                        disabled={editLoading || editSaving}
+                                      />
+                                      <span>{option}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div key={field.key} className="space-y-2">
+                            <label className="text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                              {field.label}
+                            </label>
+                            <input
+                              type="text"
+                              value={selected.join(", ")}
+                              onChange={(event) =>
+                                handleEditFieldChange(field.key, parseCommaList(event.target.value))
+                              }
+                              placeholder="Channel (comma-separated)"
+                              className="w-full rounded-lg border border-stroke bg-white px-3 py-2 text-xs text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                              disabled={editLoading || editSaving}
+                            />
+                          </div>
+                        );
+                      }
+
+                      const stringValue = Array.isArray(value) ? value.join(", ") : value;
+                      if (options.length) {
+                        return (
+                          <div key={field.key} className="space-y-2">
+                            <label className="text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                              {field.label}
+                            </label>
+                            <select
+                              value={stringValue}
+                              onChange={(event) => handleEditFieldChange(field.key, event.target.value)}
+                              className="w-full rounded-lg border border-stroke bg-white px-3 py-2 text-xs text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                              disabled={editLoading || editSaving}
+                            >
+                              <option value="">Not set</option>
+                              {options.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div key={field.key} className="space-y-2">
+                          <label className="text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                            {field.label}
+                          </label>
+                          <input
+                            type="text"
+                            value={stringValue}
+                            onChange={(event) => handleEditFieldChange(field.key, event.target.value)}
+                            className="w-full rounded-lg border border-stroke bg-white px-3 py-2 text-xs text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                            disabled={editLoading || editSaving}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {Object.keys(editFieldValues).filter((key) => !ARTICLE_DETAIL_FIELD_KEYS.has(key)).length ? (
+                    <div className="space-y-2">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                        Other Fields
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {Object.keys(editFieldValues)
+                          .filter((key) => !ARTICLE_DETAIL_FIELD_KEYS.has(key))
+                          .map((key) => {
+                            const value = editFieldValues[key];
+                            const stringValue = Array.isArray(value) ? value.join(", ") : value;
+                            const isReadOnly = READ_ONLY_FIELDS.has(key);
+                            return (
+                              <div key={key} className="space-y-2">
+                                <label className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                                  {key}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={stringValue}
+                                  onChange={(event) => handleEditFieldChange(key, event.target.value)}
+                                  className="w-full rounded-lg border border-stroke bg-white px-3 py-2 text-xs text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                                  readOnly={isReadOnly}
+                                  disabled={editLoading || editSaving}
+                                />
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
 
             <div className="mt-4">

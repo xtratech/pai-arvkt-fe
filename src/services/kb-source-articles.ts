@@ -2,11 +2,14 @@ export type SourceArticleRecord = Record<string, unknown>;
 
 export type SourceArticlesFilters = {
   q?: string;
+  query?: string;
   IntranetStatus?: string[];
   WhatsAppStatus?: string[];
-  ZendeskStatus?: string[];
+  VoiceCallStatus?: string[];
+  WebStatus?: string[];
   AccessLevel?: string[];
   Channel?: string[];
+  Category?: string[];
   id?: string;
   ids?: string[];
 };
@@ -53,8 +56,10 @@ function buildQueryParams(filters?: SourceArticlesFilters) {
   if (!filters) return new URLSearchParams();
   const params = new URLSearchParams();
 
-  const q = typeof filters.q === "string" ? filters.q.trim() : "";
-  if (q) params.set("q", q);
+  const queryValue =
+    (typeof filters.query === "string" ? filters.query.trim() : "") ||
+    (typeof filters.q === "string" ? filters.q.trim() : "");
+  if (queryValue) params.set("query", queryValue);
 
   const setCsvParam = (key: string, values?: string[]) => {
     const resolved = (values ?? []).map((v) => v.trim()).filter(Boolean);
@@ -65,9 +70,11 @@ function buildQueryParams(filters?: SourceArticlesFilters) {
 
   setCsvParam("IntranetStatus", filters.IntranetStatus);
   setCsvParam("WhatsAppStatus", filters.WhatsAppStatus);
-  setCsvParam("ZendeskStatus", filters.ZendeskStatus);
+  setCsvParam("VoiceCallStatus", filters.VoiceCallStatus);
+  setCsvParam("WebStatus", filters.WebStatus);
   setCsvParam("AccessLevel", filters.AccessLevel);
   setCsvParam("Channel", filters.Channel);
+  setCsvParam("Category", filters.Category);
 
   const resolvedId = typeof filters.id === "string" ? filters.id.trim() : "";
   const resolvedIds = (filters.ids ?? []).map((value) => value.trim()).filter(Boolean);

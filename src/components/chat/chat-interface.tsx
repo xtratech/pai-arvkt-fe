@@ -1452,24 +1452,32 @@ export function ChatInterface({
           candidate && typeof candidate === "object" && (candidate as any).article && typeof (candidate as any).article === "object"
             ? (candidate as any).article
             : candidate;
+        const articleFields =
+          articleObj && typeof articleObj === "object" && (articleObj as any).fields && typeof (articleObj as any).fields === "object"
+            ? (articleObj as any).fields
+            : null;
         const resolvedTitle =
-          typeof (articleObj as any).source_title === "string"
-            ? (articleObj as any).source_title
-            : typeof (articleObj as any).title === "string"
-              ? (articleObj as any).title
-              : null;
+          typeof (articleFields as any)?.Title === "string"
+            ? (articleFields as any).Title
+            : typeof (articleObj as any).source_title === "string"
+              ? (articleObj as any).source_title
+              : typeof (articleObj as any).title === "string"
+                ? (articleObj as any).title
+                : null;
         const resolvedBody =
-          typeof (articleObj as any).body === "string"
-            ? (articleObj as any).body
-            : typeof (articleObj as any).article_body === "string"
-              ? (articleObj as any).article_body
-              : typeof (articleObj as any).content === "string"
-                ? (articleObj as any).content
-                : typeof (articleObj as any).text === "string"
-                  ? (articleObj as any).text
-                  : payload && typeof payload === "string"
-                    ? payload
-                    : JSON.stringify(articleObj ?? candidate, null, 2);
+          typeof (articleFields as any)?.Content === "string"
+            ? (articleFields as any).Content
+            : typeof (articleObj as any).body === "string"
+              ? (articleObj as any).body
+              : typeof (articleObj as any).article_body === "string"
+                ? (articleObj as any).article_body
+                : typeof (articleObj as any).content === "string"
+                  ? (articleObj as any).content
+                  : typeof (articleObj as any).text === "string"
+                    ? (articleObj as any).text
+                    : payload && typeof payload === "string"
+                      ? payload
+                      : JSON.stringify(articleObj ?? candidate, null, 2);
 
         if (!active) return;
         setSourceBody(resolvedBody ?? "");
@@ -1518,13 +1526,14 @@ export function ChatInterface({
         headers.Authorization = authHeader;
       }
 
+      const fieldsPayload = { Title: sourceTitle, Content: sourceBody };
       const res = await fetch(sourceArticleEndpoint, {
         method: sourceModal.mode === "edit" ? "PUT" : "POST",
         headers,
         body: JSON.stringify(
           sourceModal.mode === "edit"
-            ? { id: sourceModal.sourceId, title: sourceTitle, content: sourceBody }
-            : { title: sourceTitle, content: sourceBody },
+            ? { id: sourceModal.sourceId, fields: fieldsPayload }
+            : { fields: fieldsPayload },
         ),
       });
       const payload = await res.json().catch(() => null as any);

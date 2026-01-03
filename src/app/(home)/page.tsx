@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ChatInterface } from "@/components/chat/chat-interface";
+import { AudioChatBubble } from "./_components/audio-chat-bubble";
 
 export const metadata: Metadata = {
   title: "Home",
@@ -32,6 +33,9 @@ const introMessages = [
 export default function Home() {
   return (
     <div className="flex min-h-[calc(100vh-6rem)] flex-col">
+      <div className="mb-4">
+        <AudioChatBubble src="/audio/home-intro.m4a" />
+      </div>
       <Suspense
         fallback={
           <div className="flex flex-1 items-center justify-center bg-gray-1 dark:bg-dark-2">
