@@ -244,23 +244,17 @@ export function OverviewCardsGroup() {
   const tokenBalanceValue = showFallback
     ? fallbackValue
     : formatTokenCount(wallet?.credit_balance);
-  const tokensUsedValue = showFallback
-    ? fallbackValue
-    : formatTokenCount(metrics.currentSpent);
   const tokensAddedValue = showFallback
     ? fallbackValue
     : formatTokenCount(metrics.currentAdded);
   const totalUsageText = showFallback ? fallbackValue : formatTokenCount(totalUsageValue);
 
-  const tokensUsedGrowth = showFallback
-    ? null
-    : calculateGrowthRate(metrics.currentSpent, metrics.previousSpent);
   const tokensAddedGrowth = showFallback
     ? null
     : calculateGrowthRate(metrics.currentAdded, metrics.previousAdded);
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 sm:gap-6 xl:grid-cols-4 2xl:gap-7.5">
+    <div className="grid gap-4 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3 2xl:gap-7.5">
       <OverviewCard
         label="Token Balance"
         data={{
@@ -268,18 +262,6 @@ export function OverviewCardsGroup() {
           caption: showFallback ? fallbackCaption : "Current balance",
         }}
         Icon={icons.Profit}
-      />
-
-      <OverviewCard
-        label="Tokens Used (30d)"
-        data={
-          showFallback
-            ? { value: tokensUsedValue, caption: fallbackCaption }
-            : tokensUsedGrowth === null
-              ? { value: tokensUsedValue, caption: "Last 30d" }
-              : { value: tokensUsedValue, growthRate: tokensUsedGrowth }
-        }
-        Icon={icons.Views}
       />
 
       <OverviewCard

@@ -415,7 +415,7 @@ export function TokenWalletPanel({ userId, wallet, loading, onWalletUpdated, onR
           <div className="text-sm font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
             Token Balance
           </div>
-          <div className="mt-1 text-6xl font-bold leading-none tabular-nums text-[rgb(169_240_15)]">
+          <div className="mt-1 text-3xl lg:text-6xl font-bold leading-none tabular-nums text-[rgb(169_240_15)]">
             {loading ? "…" : formatTokenCount(creditBalance)}
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-3 text-lg text-dark-5 dark:text-dark-6">
@@ -593,3 +593,4 @@ export function TokenWalletPanel({ userId, wallet, loading, onWalletUpdated, onR
     </>
   );
 }
+

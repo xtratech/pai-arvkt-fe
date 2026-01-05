@@ -17,6 +17,8 @@ const LAST_ACTIVE_KEY = `${STORAGE_PREFIX}:last-active-at`;
 const LAST_CHECK_KEY = `${STORAGE_PREFIX}:last-check-at`;
 const TRAINING_TRIGGER_PREFIX = `${STORAGE_PREFIX}:kb-training-trigger:`;
 
+export const IDLE_RESUME_TRIGGER_EVENT = "pluree:idle-resume-trigger";
+
 const IDLE_THRESHOLD_MS = 60 * 60 * 1000;
 const CHECK_COOLDOWN_MS = 15 * 60 * 1000;
 const TRAINING_STALE_THRESHOLD_MS = 500 * 60 * 1000;
@@ -411,6 +413,22 @@ export function useIdleResumeTrainingCheck() {
     void runCheck();
   }, [isAuthenticated, isLoading, runCheck, userId]);
 
+  const triggerCheck = useCallback(() => {
+    if (typeof window === "undefined") return;
+    if (isLoading || !isAuthenticated || !userId) return;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+
+    const now = Date.now();
+    const lastCheckAt = readStoredTimestamp(LAST_CHECK_KEY);
+    if (lastCheckAt && now - lastCheckAt < CHECK_COOLDOWN_MS) {
+      return;
+    }
+
+    writeStoredTimestamp(LAST_ACTIVE_KEY, now);
+    writeStoredTimestamp(LAST_CHECK_KEY, now);
+    void runCheck();
+  }, [isAuthenticated, isLoading, runCheck, userId]);
+
   useEffect(() => {
     if (isLoading || !isAuthenticated) return;
     maybeRunCheck();
@@ -432,17 +450,27 @@ export function useIdleResumeTrainingCheck() {
     const handleFocus = () => maybeRunCheck();
     const handleOnline = () => maybeRunCheck();
     const handlePageHide = () => writeStoredTimestamp(LAST_ACTIVE_KEY, Date.now());
+    const handleManualTrigger = () => triggerCheck();
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", handleFocus);
     window.addEventListener("online", handleOnline);
     window.addEventListener("pagehide", handlePageHide);
+    window.addEventListener(IDLE_RESUME_TRIGGER_EVENT, handleManualTrigger as EventListener);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("pagehide", handlePageHide);
+      window.removeEventListener(IDLE_RESUME_TRIGGER_EVENT, handleManualTrigger as EventListener);
     };
-  }, [maybeRunCheck]);
+  }, [maybeRunCheck, triggerCheck]);
+}
+
+export function triggerIdleResumeTrainingCheck() {
+  if (typeof window === "undefined") return;
+  if (typeof window.dispatchEvent !== "function") return;
+  if (typeof CustomEvent !== "function") return;
+  window.dispatchEvent(new CustomEvent(IDLE_RESUME_TRIGGER_EVENT));
 }

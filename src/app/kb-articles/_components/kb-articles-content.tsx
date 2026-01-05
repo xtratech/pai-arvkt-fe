@@ -478,6 +478,22 @@ function getFirstString(record: SourceArticleRecord, keys: string[]) {
   return "";
 }
 
+function normalizeQueryTerms(input: string) {
+  return input
+    .toLowerCase()
+    .split(/\s+/)
+    .map((term) => term.trim())
+    .filter(Boolean);
+}
+
+function buildSearchHaystack(record: SourceArticleRecord) {
+  const title = getFirstString(record, ["Title", "title", "source_title", "name"]);
+  const content = getFirstString(record, ["Content", "content", "body", "text"]);
+  const id = getFirstString(record, ["id", "UniqueID", "record_id", "recordId", "source_id"]);
+  const combined = `${title} ${content} ${id}`.trim();
+  return combined.toLowerCase();
+}
+
 function normalizeFieldOptions(input: unknown) {
   if (!input || typeof input !== "object") return null;
   const record = input as Record<string, unknown>;
@@ -858,6 +874,17 @@ export function KbArticlesContent({ sessionId }: Props) {
       ids.trim(),
   );
 
+  const visibleArticles = useMemo(() => {
+    const terms = normalizeQueryTerms(query);
+    if (!terms.length) return articles;
+    return articles.filter((article) => {
+      const haystack = buildSearchHaystack(article);
+      if (!haystack) return false;
+      return terms.every((term) => haystack.includes(term));
+    });
+  }, [articles, query]);
+  const displayTotal = query.trim() ? visibleArticles.length : totalCount ?? visibleArticles.length;
+
   const resetFilters = useCallback(() => {
     setQuery("");
     setIntranetStatus("");
@@ -896,6 +923,7 @@ export function KbArticlesContent({ sessionId }: Props) {
     () => getDefaultCreateFieldValues(),
   );
   const [createDetailsOpen, setCreateDetailsOpen] = useState(false);
+  const [createInsightsOpen, setCreateInsightsOpen] = useState(true);
   const [createPreviewMarkdown, setCreatePreviewMarkdown] = useState(false);
   const [createAnalyzing, setCreateAnalyzing] = useState(false);
   const [createSaving, setCreateSaving] = useState(false);
@@ -941,6 +969,7 @@ export function KbArticlesContent({ sessionId }: Props) {
     setCreateContent("");
     setCreateFieldValues(getDefaultCreateFieldValues());
     setCreateDetailsOpen(false);
+    setCreateInsightsOpen(true);
     setCreatePreviewMarkdown(false);
     setCreateAnalyzing(false);
     analyzerJobRef.current = null;
@@ -980,6 +1009,7 @@ export function KbArticlesContent({ sessionId }: Props) {
     setCreateContent("");
     setCreateFieldValues(getDefaultCreateFieldValues());
     setCreateDetailsOpen(false);
+    setCreateInsightsOpen(true);
     setCreatePreviewMarkdown(false);
     analyzerJobRef.current = null;
     draftSupportJobRef.current = null;
@@ -1748,7 +1778,7 @@ export function KbArticlesContent({ sessionId }: Props) {
             </Link>
           </div>
           <div className="mt-1 text-sm text-dark-5 dark:text-dark-6">
-            {loading ? "Loading..." : `Total: ${totalCount ?? articles.length}`}
+            {loading ? "Loading..." : `Total: ${displayTotal}`}
           </div>
         </div>
 
@@ -1816,7 +1846,7 @@ export function KbArticlesContent({ sessionId }: Props) {
             type="text"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by title..."
+            placeholder="Search by title or content..."
             className="w-full rounded-lg border border-stroke bg-transparent px-4 py-2 text-sm text-dark outline-none transition focus:border-primary dark:border-dark-3 dark:bg-dark-2 dark:text-white sm:max-w-xl"
           />
 
@@ -1921,7 +1951,7 @@ export function KbArticlesContent({ sessionId }: Props) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-2 dark:divide-dark-3">
-            {articles.map((article, index) => {
+            {visibleArticles.map((article, index) => {
               const title = getFirstString(article, ["Title", "title", "source_title", "name"]) || "(Untitled)";
               const id =
                 getFirstString(article, ["id", "UniqueID", "source_id", "record_id", "recordId"]) || "";
@@ -1959,7 +1989,7 @@ export function KbArticlesContent({ sessionId }: Props) {
               );
             })}
 
-            {!loading && articles.length === 0 ? (
+            {!loading && visibleArticles.length === 0 ? (
               <tr>
                 <td className="px-4 py-3 text-sm text-dark-5 dark:text-dark-6" colSpan={8}>
                   No knowledgebase articles found for the current filters.
@@ -2288,157 +2318,180 @@ export function KbArticlesContent({ sessionId }: Props) {
                         Review sources, assumptions, open questions, and run a support check before saving.
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => void handleAnalyzeDraftSupport()}
-                      className="rounded-lg border border-stroke bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-dark transition hover:bg-gray-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:bg-dark-2 dark:text-white dark:hover:bg-dark-3"
-                      disabled={createSaving || createDraftAnalyzing || !createContent.trim()}
-                    >
-                      {createDraftAnalyzing
-                        ? "Checking..."
-                        : createDraftAnalysis
-                          ? "Re-check Support"
-                          : "Check Support"}
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCreateInsightsOpen((prev) => !prev)}
+                        className="rounded-full border border-stroke px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-dark transition hover:bg-gray-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:text-white dark:hover:bg-dark-3"
+                        disabled={createSaving}
+                      >
+                        {createInsightsOpen ? "Hide" : "Show"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleAnalyzeDraftSupport()}
+                        className="rounded-lg border border-stroke bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-dark transition hover:bg-gray-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:bg-dark-2 dark:text-white dark:hover:bg-dark-3"
+                        disabled={createSaving || createDraftAnalyzing || !createContent.trim()}
+                      >
+                        {createDraftAnalyzing
+                          ? "Checking..."
+                          : createDraftAnalysis
+                            ? "Re-check Support"
+                            : "Check Support"}
+                      </button>
+                    </div>
                   </div>
 
-                  {createDraftAnalysis ? (
-                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
-                        <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
-                          Segments
-                        </div>
-                        <div className="mt-1 text-lg font-semibold text-dark dark:text-white">
-                          {createDraftAnalysis.segments.length}
-                        </div>
-                      </div>
-                      <div className="rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
-                        <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
-                          Supported
-                        </div>
-                        <div className="mt-1 text-lg font-semibold text-dark dark:text-white">
-                          {Math.max(0, createDraftAnalysis.segments.length - createDraftAnalysis.unsupported.length)}
-                        </div>
-                      </div>
-                      <div className="rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
-                        <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
-                          Unsupported
-                        </div>
-                        <div className="mt-1 text-lg font-semibold text-dark dark:text-white">
-                          {createDraftAnalysis.unsupported.length}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-4 text-xs text-dark-5 dark:text-dark-6">
-                      Support check not run yet. Click “Check Support” to see which claims map back to existing KB
-                      articles.
-                    </div>
-                  )}
-
-                  {createDraftAnalysis && createDraftAnalysis.unsupported.length ? (
-                    <div className="mt-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
-                        Unsupported / low-confidence segments
-                      </div>
-                      <div className="custom-scrollbar mt-2 max-h-44 space-y-2 overflow-auto pr-1">
-                        {createDraftAnalysis.unsupported.map((segment, idx) => (
-                          <div
-                            key={`unsupported-${idx}`}
-                            className="rounded-md border border-stroke bg-white px-3 py-2 text-xs text-dark shadow-sm dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-                          >
-                            <div className="whitespace-pre-wrap">{segment.segment_text}</div>
-                            <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-dark-5 dark:text-dark-6">
-                              <span>Confidence: {(normalizeConfidence(segment.confidence) * 10).toFixed(1)}/10</span>
-                              {segment.source_title ? <span>Source: {segment.source_title}</span> : <span>No match</span>}
+                  {createInsightsOpen ? (
+                    <>
+                      {createDraftAnalysis ? (
+                        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                          <div className="rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                              Segments
                             </div>
-                            {segment.supporting_quote ? (
-                              <div className="mt-2 border-l-2 border-primary/40 pl-2 text-[11px] text-dark-6 dark:text-dark-7">
-                                {segment.supporting_quote}
-                              </div>
-                            ) : null}
+                            <div className="mt-1 text-lg font-semibold text-dark dark:text-white">
+                              {createDraftAnalysis.segments.length}
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
+                          <div className="rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                              Supported
+                            </div>
+                            <div className="mt-1 text-lg font-semibold text-dark dark:text-white">
+                              {Math.max(
+                                0,
+                                createDraftAnalysis.segments.length - createDraftAnalysis.unsupported.length,
+                              )}
+                            </div>
+                          </div>
+                          <div className="rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                              Unsupported
+                            </div>
+                            <div className="mt-1 text-lg font-semibold text-dark dark:text-white">
+                              {createDraftAnalysis.unsupported.length}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-4 text-xs text-dark-5 dark:text-dark-6">
+                          Support check not run yet. Click &quot;Check Support&quot; to see which claims map back to existing KB
+                          articles.
+                        </div>
+                      )}
 
-                  {createDraftAnalysis?.flagged ? (
-                    <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-900 dark:border-yellow-900/40 dark:bg-yellow-950/20 dark:text-yellow-100">
-                      Several segments could not be confidently matched to existing KB articles. Review carefully before
-                      saving.
-                    </div>
-                  ) : null}
+                      {createDraftAnalysis && createDraftAnalysis.unsupported.length ? (
+                        <div className="mt-4">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                            Unsupported / low-confidence segments
+                          </div>
+                          <div className="custom-scrollbar mt-2 max-h-44 space-y-2 overflow-auto pr-1">
+                            {createDraftAnalysis.unsupported.map((segment, idx) => (
+                              <div
+                                key={`unsupported-${idx}`}
+                                className="rounded-md border border-stroke bg-white px-3 py-2 text-xs text-dark shadow-sm dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                              >
+                                <div className="whitespace-pre-wrap">{segment.segment_text}</div>
+                                <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-dark-5 dark:text-dark-6">
+                                  <span>
+                                    Confidence: {(normalizeConfidence(segment.confidence) * 10).toFixed(1)}/10
+                                  </span>
+                                  {segment.source_title ? (
+                                    <span>Source: {segment.source_title}</span>
+                                  ) : (
+                                    <span>No match</span>
+                                  )}
+                                </div>
+                                {segment.supporting_quote ? (
+                                  <div className="mt-2 border-l-2 border-primary/40 pl-2 text-[11px] text-dark-6 dark:text-dark-7">
+                                    {segment.supporting_quote}
+                                  </div>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
 
-                  {createDraftAnalysis?.flagged ? (
-                    <label className="mt-3 flex items-start gap-2 text-xs text-dark-5 dark:text-dark-6">
-                      <input
-                        type="checkbox"
-                        className="mt-0.5 h-4 w-4 rounded border-stroke text-primary focus:ring-primary dark:border-dark-3"
-                        checked={createDraftReviewConfirmed}
-                        onChange={(e) => setCreateDraftReviewConfirmed(e.target.checked)}
-                      />
-                      <span>I reviewed the unsupported segments and want to save this draft anyway.</span>
-                    </label>
-                  ) : null}
+                      {createDraftAnalysis?.flagged ? (
+                        <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-900 dark:border-yellow-900/40 dark:bg-yellow-950/20 dark:text-yellow-100">
+                          Several segments could not be confidently matched to existing KB articles. Review carefully
+                          before saving.
+                        </div>
+                      ) : null}
 
-                  {createDraftMeta ? (
-                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                      <div className="flex h-28 flex-col rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
-                        <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
-                          Sources Used
+                      {createDraftAnalysis?.flagged ? (
+                        <label className="mt-3 flex items-start gap-2 text-xs text-dark-5 dark:text-dark-6">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 h-4 w-4 rounded border-stroke text-primary focus:ring-primary dark:border-dark-3"
+                            checked={createDraftReviewConfirmed}
+                            onChange={(e) => setCreateDraftReviewConfirmed(e.target.checked)}
+                          />
+                          <span>I reviewed the unsupported segments and want to save this draft anyway.</span>
+                        </label>
+                      ) : null}
+
+                      {createDraftMeta ? (
+                        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                          <div className="flex h-28 flex-col rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                              Sources Used
+                            </div>
+                            <div className="custom-scrollbar mt-2 flex-1 overflow-auto pr-1">
+                              {createDraftMeta.source_ids_and_titles_used.length ? (
+                                <ul className="space-y-1 text-xs text-dark dark:text-white">
+                                  {createDraftMeta.source_ids_and_titles_used.map((entry, idx) => (
+                                    <li key={`src-${idx}`} className="break-words">
+                                      {entry}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div className="text-xs text-dark-5 dark:text-dark-6">No sources returned.</div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex h-28 flex-col rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                              Assumptions
+                            </div>
+                            <div className="custom-scrollbar mt-2 flex-1 overflow-auto pr-1">
+                              {createDraftMeta.assumptions.length ? (
+                                <ul className="space-y-1 text-xs text-dark dark:text-white">
+                                  {createDraftMeta.assumptions.map((entry, idx) => (
+                                    <li key={`asm-${idx}`} className="break-words">
+                                      {entry}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div className="text-xs text-dark-5 dark:text-dark-6">No assumptions returned.</div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex h-28 flex-col rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                              Open Questions
+                            </div>
+                            <div className="custom-scrollbar mt-2 flex-1 overflow-auto pr-1">
+                              {createDraftMeta.open_questions.length ? (
+                                <ul className="space-y-1 text-xs text-dark dark:text-white">
+                                  {createDraftMeta.open_questions.map((entry, idx) => (
+                                    <li key={`oq-${idx}`} className="break-words">
+                                      {entry}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div className="text-xs text-dark-5 dark:text-dark-6">No open questions returned.</div>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div className="custom-scrollbar mt-2 flex-1 overflow-auto pr-1">
-                          {createDraftMeta.source_ids_and_titles_used.length ? (
-                            <ul className="space-y-1 text-xs text-dark dark:text-white">
-                              {createDraftMeta.source_ids_and_titles_used.map((entry, idx) => (
-                                <li key={`src-${idx}`} className="break-words">
-                                  {entry}
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <div className="text-xs text-dark-5 dark:text-dark-6">No sources returned.</div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex h-28 flex-col rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
-                        <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
-                          Assumptions
-                        </div>
-                        <div className="custom-scrollbar mt-2 flex-1 overflow-auto pr-1">
-                          {createDraftMeta.assumptions.length ? (
-                            <ul className="space-y-1 text-xs text-dark dark:text-white">
-                              {createDraftMeta.assumptions.map((entry, idx) => (
-                                <li key={`asm-${idx}`} className="break-words">
-                                  {entry}
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <div className="text-xs text-dark-5 dark:text-dark-6">No assumptions returned.</div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex h-28 flex-col rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-dark-2">
-                        <div className="text-[11px] font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
-                          Open Questions
-                        </div>
-                        <div className="custom-scrollbar mt-2 flex-1 overflow-auto pr-1">
-                          {createDraftMeta.open_questions.length ? (
-                            <ul className="space-y-1 text-xs text-dark dark:text-white">
-                              {createDraftMeta.open_questions.map((entry, idx) => (
-                                <li key={`oq-${idx}`} className="break-words">
-                                  {entry}
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <div className="text-xs text-dark-5 dark:text-dark-6">No open questions returned.</div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                      ) : null}
+                    </>
                   ) : null}
                 </div>
 

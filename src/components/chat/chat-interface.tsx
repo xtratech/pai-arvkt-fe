@@ -13,6 +13,7 @@ import {
   type AsyncJobResponse,
   type ChatSyncResponse,
 } from "@/services/chat-async-jobs";
+import { triggerIdleResumeTrainingCheck } from "@/hooks/use-idle-resume-check";
 import { recordUserWalletUsage } from "@/services/user-wallet";
 import { useUser } from "@/contexts/user-context";
 import { buildBearerTokenFromTokens } from "@/lib/auth-headers";
@@ -489,7 +490,7 @@ const API_ENDPOINT =
   "https://vwiy6y0d3b.execute-api.ap-southeast-1.amazonaws.com/Prod/chat";
 
 const TRAIN_LLM_TOKEN_COST = 50_000;
-const TRAIN_LLM_KB_EXPERT_COMMAND = "update-kb-expert-knowledgE";
+const TRAIN_LLM_KB_EXPERT_COMMAND = "update-kb-super-editor-knowledgE";
 const KB_EXPERT_PREFIX = "kbexpert:";
 const KB_EXPERT_AGENT = "kb-expert";
 const KB_ANALYZER_AGENT = "kb-analyzer";
@@ -745,10 +746,22 @@ function findFirstStringForKeys(body: unknown, keys: string[]): string | undefin
   return undefined;
 }
 
+function unwrapAsyncResult(body: unknown) {
+  if (!body || typeof body !== "object") return body;
+  if (isAsyncJobResponse(body)) {
+    const result = (body as any).result;
+    if (result && typeof result === "object") {
+      return result;
+    }
+  }
+  return body;
+}
+
 function extractResponseText(body: unknown, schema: unknown): string | undefined {
-  if (typeof body === "string") return body;
-  if (body && typeof body === "object" && "text" in (body as Record<string, unknown>)) {
-    const val = (body as Record<string, unknown>).text;
+  const resolvedBody = unwrapAsyncResult(body);
+  if (typeof resolvedBody === "string") return resolvedBody;
+  if (resolvedBody && typeof resolvedBody === "object" && "text" in (resolvedBody as Record<string, unknown>)) {
+    const val = (resolvedBody as Record<string, unknown>).text;
     if (typeof val === "string") return val;
   }
   const candidates = new Set(["answer", "response", "text", "message", "output", "content"]);
@@ -767,20 +780,21 @@ function extractResponseText(body: unknown, schema: unknown): string | undefined
   }
 
   const orderedKeys = Array.from(candidates);
-  const found = findFirstStringForKeys(body, orderedKeys);
+  const found = findFirstStringForKeys(resolvedBody, orderedKeys);
   if (found) return found;
 
   const maybeChoice =
-    (body as any)?.choices?.[0]?.message?.content ??
-    (body as any)?.choices?.[0]?.text ??
-    (body as any)?.data?.[0]?.text;
+    (resolvedBody as any)?.choices?.[0]?.message?.content ??
+    (resolvedBody as any)?.choices?.[0]?.text ??
+    (resolvedBody as any)?.data?.[0]?.text;
   if (typeof maybeChoice === "string") return maybeChoice;
 
   return undefined;
 }
 
 function extractSuggestions(body: unknown): string[] {
-  if (!body || typeof body !== "object") return [];
+  const resolvedBody = unwrapAsyncResult(body);
+  if (!resolvedBody || typeof resolvedBody !== "object") return [];
   const collected: string[] = [];
 
   const pushValue = (val: unknown) => {
@@ -800,7 +814,7 @@ function extractSuggestions(body: unknown): string[] {
     }
   };
 
-  const queue: Array<unknown> = [body];
+  const queue: Array<unknown> = [resolvedBody];
   while (queue.length) {
     const current = queue.shift();
     if (!current || typeof current !== "object") continue;
@@ -818,12 +832,13 @@ function extractSuggestions(body: unknown): string[] {
 }
 
 function extractUsageMetadata(body: unknown) {
-  if (!body || typeof body !== "object") return null;
+  const resolvedBody = unwrapAsyncResult(body);
+  if (!resolvedBody || typeof resolvedBody !== "object") return null;
 
   const candidate =
-    (body as any).usageMetadata ??
-    (body as any).usage_metadata ??
-    (body as any).usage ??
+    (resolvedBody as any).usageMetadata ??
+    (resolvedBody as any).usage_metadata ??
+    (resolvedBody as any).usage ??
     null;
 
   if (!candidate || typeof candidate !== "object") return null;
@@ -1315,12 +1330,21 @@ export function ChatInterface({
         });
       }
 
-      const botText = useSessionEndpoint
-        ? extractResponseText(responseBody, sessionConfig?.chat_api_response_schema) ??
-          "The assistant did not return a response."
-        : typeof responseBody?.text === "string" && responseBody.text.length
-          ? responseBody.text
-          : "The assistant did not return a response.";
+      const resolvedText =
+        extractResponseText(
+          responseBody,
+          useSessionEndpoint ? sessionConfig?.chat_api_response_schema : null,
+        ) ?? "The assistant did not return a response.";
+      const shouldTriggerTraining =
+        isAsyncJobResponse(responseBody) &&
+        String(responseBody.status ?? "").toUpperCase() === "SUCCEEDED" &&
+        resolvedText.trim() === "No kb, please upload kb.";
+      if (shouldTriggerTraining) {
+        triggerIdleResumeTrainingCheck();
+      }
+      const botText = shouldTriggerTraining
+        ? "No kb, please upload kb by training your assistants."
+        : resolvedText;
       const suggestions = extractSuggestions(responseBody);
       const botMessage: ChatMessage = {
         id: createId(),
@@ -1621,7 +1645,7 @@ export function ChatInterface({
                         : undefined
                 }
               >
-                {trainSending ? "Training..." : "Train LLM KB Expert"}
+                {trainSending ? "Training..." : "Train LLM KB Experts"}
               </button>
             </>
           ) : null}
@@ -1705,11 +1729,11 @@ export function ChatInterface({
           onClick={(e) => e.stopPropagation()}
         >
           <h4 className="text-lg font-semibold text-dark dark:text-white">
-            {trainConfirmMode === "train_kb_expert" ? "Train LLM KB Expert" : "Train LLM"}
+            {trainConfirmMode === "train_kb_expert" ? "Train LLM KB Experts" : "Train LLM"}
           </h4>
           <p className="mt-3 text-sm text-dark-5 dark:text-dark-6">
             {trainConfirmMode === "train_kb_expert"
-              ? "Train LLM KB Expert will start a training run. We recommend making as many edits as possible before training to optimize costs. Are you sure you want to proceed?"
+              ? "Train LLM KB Experts will start a training run. We recommend making as many edits as possible before training to optimize costs. Are you sure you want to proceed?"
               : "We recommend making as many edits as possible before training to optimize costs. Are you sure you want to proceed?"}
           </p>
           {trainConfirmMode === "train_kb_expert" || trainCommand ? (

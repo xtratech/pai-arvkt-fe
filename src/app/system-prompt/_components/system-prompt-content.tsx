@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { normalizeFinalOutput, startChat, type ChatUsageMetadata } from "@/services/chat-async-jobs";
 import { fetchSessionDetail, type SessionRecord } from "@/services/sessions";
+import { recordUserWalletUsage } from "@/services/user-wallet";
 import { useUser } from "@/contexts/user-context";
 import { buildBearerTokenFromTokens } from "@/lib/auth-headers";
 
@@ -149,7 +151,113 @@ function resolveAgentConfigConnection(sessionConfig: Record<string, unknown> | n
   };
 }
 
+function resolveChatConnection(sessionConfig: Record<string, unknown> | null | undefined) {
+  const cfg = (sessionConfig ?? {}) as any;
+  const endpoint = String(cfg.chat_api_endpoint ?? "").trim();
+  const keyName = String(cfg.chat_api_key_name ?? "x-api-key").trim() || "x-api-key";
+  const keyValue = String(cfg.chat_api_key ?? "").trim();
+  const requestSchema = cfg.chat_api_request_schema;
+  return {
+    endpoint,
+    keyName,
+    keyValue,
+    requestSchema,
+  };
+}
+
+function parseSchemaInput(schema: unknown) {
+  if (!schema) return null;
+  if (typeof schema === "string") {
+    const trimmed = schema.trim();
+    if (!trimmed) return null;
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return null;
+    }
+  }
+  if (typeof schema === "object") {
+    return schema;
+  }
+  return null;
+}
+
+function buildRequestFromSchema(schema: unknown, message: string, userIdentifier: string): Record<string, unknown> {
+  const parsed = parseSchemaInput(schema);
+  let placedMessage = false;
+  let placedUser = false;
+
+  const fillTemplate = (template: any): any => {
+    if (Array.isArray(template)) {
+      return template.map((item) => fillTemplate(item));
+    }
+    if (!template || typeof template !== "object") {
+      return template;
+    }
+    const copy: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(template)) {
+      const lower = key.toLowerCase();
+      if (typeof value === "string") {
+        if (lower.includes("prompt") || lower.includes("message") || lower.includes("query") || lower.includes("input")) {
+          placedMessage = true;
+          copy[key] = message;
+          continue;
+        }
+        if (lower.includes("user")) {
+          placedUser = true;
+          copy[key] = userIdentifier;
+          continue;
+        }
+      }
+      copy[key] = fillTemplate(value);
+    }
+    return copy;
+  };
+
+  const payload = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? fillTemplate(parsed) : {};
+
+  if (!placedMessage) {
+    (payload as Record<string, unknown>).message = message;
+  }
+  if (!placedUser) {
+    (payload as Record<string, unknown>).userId = userIdentifier;
+  }
+
+  return payload;
+}
+
+function deriveWalletUsage(usage: ChatUsageMetadata | undefined) {
+  if (!usage || typeof usage !== "object") return null;
+  const total = Number(usage.totalTokenCount);
+  if (Number.isFinite(total) && total > 0) {
+    return { ...usage, totalTokenCount: Math.round(total) };
+  }
+  const prompt = Number(usage.promptTokenCount);
+  const candidates = Number(usage.candidatesTokenCount);
+  const sum = (Number.isFinite(prompt) ? prompt : 0) + (Number.isFinite(candidates) ? candidates : 0);
+  if (sum > 0) {
+    return { ...usage, totalTokenCount: Math.round(sum) };
+  }
+  return null;
+}
+
 type ProfileId = "default" | "kb_expert" | "kb_analyzer" | "kb_creator";
+
+const TRAINING_TOKEN_COST = 28_000;
+
+const TRAINING_COMMANDS: Record<ProfileId, string> = {
+  default: "update-knowledgE",
+  kb_expert: "update-kb-expert-knowledgE",
+  kb_analyzer: "update-kb-analyzer-knowledgE",
+  kb_creator: "update-kb-creator-knowledgE",
+};
+
+const TRAINING_LABELS: Record<ProfileId, string> = {
+  default: "Default Assistant",
+  kb_expert: "KB Expert",
+  kb_analyzer: "KB Analyzer",
+  kb_creator: "KB Creator",
+};
 
 function normalizeModelOptions(input: unknown): ModelOption[] {
   if (!Array.isArray(input)) return [];
@@ -259,6 +367,9 @@ export function SystemPromptContent({
   const [kbCreatorCandidateCount, setKbCreatorCandidateCount] = useState<string>("");
   const [kbCreatorStopSequences, setKbCreatorStopSequences] = useState<string>("");
   const [kbCreatorResponseMimeType, setKbCreatorResponseMimeType] = useState<string>("");
+  const [trainingProfile, setTrainingProfile] = useState<ProfileId | null>(null);
+  const [trainError, setTrainError] = useState<string | null>(null);
+  const [trainNotice, setTrainNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
@@ -267,6 +378,10 @@ export function SystemPromptContent({
   const dirtyRef = useRef(false);
   const [session, setSession] = useState<SessionRecord | null>(initialSession ?? null);
   const sessionConfig = useMemo(() => session?.config ?? {}, [session]);
+  const sessionUserId = useMemo(() => {
+    const raw = (session as any)?.user_id ?? (session as any)?.userId ?? "";
+    return typeof raw === "string" ? raw.trim() : "";
+  }, [session]);
   const [activeProfile, setActiveProfile] = useState<ProfileId>("default");
   const [lastLoadedConfig, setLastLoadedConfig] = useState<AgentConfig | null>(null);
   const derivedUserId = useMemo(
@@ -285,6 +400,14 @@ export function SystemPromptContent({
 
   const { endpoint: agentConfigEndpoint, keyName: agentConfigKeyName, keyValue: agentConfigKeyValue } =
     useMemo(() => resolveAgentConfigConnection(sessionConfig as Record<string, unknown>), [sessionConfig]);
+  const { endpoint: chatEndpoint, keyName: chatKeyName, keyValue: chatKeyValue, requestSchema: chatRequestSchema } =
+    useMemo(() => resolveChatConnection(sessionConfig as Record<string, unknown>), [sessionConfig]);
+  const trainingUserId = useMemo(() => {
+    if (typeof derivedUserId === "string" && derivedUserId.trim()) {
+      return derivedUserId.trim();
+    }
+    return sessionUserId;
+  }, [derivedUserId, sessionUserId]);
 
   const markDirty = useCallback(() => {
     dirtyRef.current = true;
@@ -756,6 +879,86 @@ export function SystemPromptContent({
     return cfg;
   };
 
+  const handleTrainProfile = useCallback(
+    async (profile: ProfileId) => {
+      if (trainingProfile) return;
+
+      const command = TRAINING_COMMANDS[profile];
+      if (!command) {
+        setTrainError("Training command is not configured.");
+        return;
+      }
+
+      setTrainError(null);
+      setTrainNotice(null);
+
+      const endpoint = chatEndpoint;
+      if (!endpoint) {
+        setTrainError("Chat API endpoint is not configured for this agent.");
+        return;
+      }
+
+      const userIdentifier = trainingUserId;
+      if (!userIdentifier) {
+        setTrainError("Unable to resolve user identity for training.");
+        return;
+      }
+
+      setTrainingProfile(profile);
+      try {
+        const headers: Record<string, string> = {
+          accept: "application/json",
+          "Content-Type": "application/json",
+        };
+        if (chatKeyValue) {
+          headers[chatKeyName] = chatKeyValue;
+        }
+        if (authHeader) {
+          headers.Authorization = authHeader;
+        }
+
+        const requestPayload = buildRequestFromSchema(chatRequestSchema, command, userIdentifier);
+        (requestPayload as Record<string, unknown>).user_id = userIdentifier;
+        if (!("userId" in requestPayload)) {
+          (requestPayload as Record<string, unknown>).userId = userIdentifier;
+        }
+        if (!("message" in requestPayload)) {
+          (requestPayload as Record<string, unknown>).message = command;
+        }
+
+        const controller = new AbortController();
+        const response = await startChat({
+          endpoint,
+          headers,
+          body: requestPayload,
+          signal: controller.signal,
+        });
+
+        const { finalUsage } = normalizeFinalOutput(response);
+        const walletUsage = deriveWalletUsage(finalUsage) ?? { totalTokenCount: TRAINING_TOKEN_COST };
+        void recordUserWalletUsage(userIdentifier, walletUsage).catch((err) => {
+          console.warn("[SystemPromptContent] Unable to record wallet usage for training", err);
+        });
+
+        setTrainNotice(`Training request sent for ${TRAINING_LABELS[profile]}.`);
+      } catch (err) {
+        console.error("[SystemPromptContent] Training request failed", err);
+        setTrainError(err instanceof Error && err.message ? err.message : "Unable to trigger training right now.");
+      } finally {
+        setTrainingProfile(null);
+      }
+    },
+    [
+      authHeader,
+      chatEndpoint,
+      chatKeyName,
+      chatKeyValue,
+      chatRequestSchema,
+      trainingProfile,
+      trainingUserId,
+    ],
+  );
+
   const handleSave = async () => {
     if (!agentConfigEndpoint) {
       setError("Agent Config endpoint is not configured for this agent.");
@@ -911,6 +1114,8 @@ export function SystemPromptContent({
     availableModels.find((m) => m.key === activeModelKey) ??
     availableModels.find((m) => (m.name ?? "").trim() === activeModelKey.trim()) ??
     null;
+  const trainingAvailable = Boolean(chatEndpoint && trainingUserId);
+  const trainingDisabled = disableForm || Boolean(trainingProfile) || !trainingAvailable;
 
   const handleDiscardChanges = () => {
     if (!lastLoadedConfig) return;
@@ -1180,6 +1385,36 @@ export function SystemPromptContent({
                     {selectedModelOption.thinking_level.join(", ")}
                   </span>
                 </div>
+              ) : null}
+            </div>
+
+            <div className="mt-4 rounded-lg border border-stroke bg-gray-1 px-3 py-2 dark:border-dark-3 dark:bg-dark-3">
+              <div className="text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                Training profile
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-dark dark:text-white">
+                  {TRAINING_LABELS[activeProfile]}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void handleTrainProfile(activeProfile)}
+                  className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={trainingDisabled}
+                >
+                  {trainingProfile === activeProfile ? "Training..." : "Train"}
+                </button>
+              </div>
+              {!trainingAvailable ? (
+                <div className="mt-2 text-[11px] text-dark-5 dark:text-dark-6">
+                  Configure the Chat API endpoint to enable training.
+                </div>
+              ) : null}
+              {trainError ? (
+                <div className="mt-2 text-[11px] text-red-600 dark:text-red-400">{trainError}</div>
+              ) : null}
+              {trainNotice ? (
+                <div className="mt-2 text-[11px] text-green-600 dark:text-green-400">{trainNotice}</div>
               ) : null}
             </div>
 
