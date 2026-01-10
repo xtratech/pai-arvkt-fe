@@ -8,6 +8,8 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: ['"Satoshi"', ...defaultTheme.fontFamily.sans],
+        cyborg: ["var(--font-space-grotesk)", ...defaultTheme.fontFamily.sans],
+        "cyborg-mono": ["var(--font-space-mono)", ...defaultTheme.fontFamily.mono],
       },
       screens: {
         "2xsm": "375px",
@@ -22,6 +24,10 @@ const config: Config = {
         stroke: "#E6EBF1",
         "stroke-dark": "#27303E",
         "light-yellow-1": "#FFFF8A",
+        // Minimal Cyborg Theme Colors
+        obsidian: "#05070c",
+        "neon-cyan": "#22d3ee", // cyan-400
+        "soft-violet": "#a78bfa", // violet-400
         dark: {
           DEFAULT: "#111928",
           2: "#1F2A37",
@@ -357,6 +363,20 @@ const config: Config = {
           "0%, 100%": { transform: "translateY(100%)" },
           "50%": { transform: "translateY(0)" },
         },
+        "pulse-glow": {
+          "0%, 100%": { opacity: "0.35", transform: "scale(0.98)" },
+          "50%": { opacity: "0.75", transform: "scale(1.02)" },
+        },
+        "scan-line": {
+          "0%": { opacity: "0", transform: "translateY(-30%)" },
+          "25%": { opacity: "0.6" },
+          "65%": { opacity: "0.15" },
+          "100%": { opacity: "0", transform: "translateY(30%)" },
+        },
+        float: {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-10px)" },
+        },
       },
       animation: {
         linspin: "linspin 1568.2353ms linear infinite",
@@ -375,6 +395,9 @@ const config: Config = {
         line1: "line 10s infinite linear",
         line2: "line-revert 8s infinite linear",
         line3: "line 7s infinite linear",
+        "pulse-glow": "pulse-glow 6s ease-in-out infinite",
+        "scan-line": "scan-line 9s linear infinite",
+        "float-slow": "float 7s ease-in-out infinite",
       },
     },
   },

@@ -9,6 +9,20 @@ import NextTopLoader from "nextjs-toploader";
 import type { PropsWithChildren } from "react";
 import { Providers } from "./providers";
 import { AppShell } from "@/components/Layouts/app-shell";
+import { Space_Grotesk, Space_Mono } from "next/font/google";
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-space-grotesk",
+});
+
+const spaceMono = Space_Mono({
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  display: "swap",
+  variable: "--font-space-mono",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -21,7 +35,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: PropsWithChildren) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body suppressHydrationWarning>
+      <body
+        suppressHydrationWarning
+        className={`${spaceGrotesk.variable} ${spaceMono.variable}`}
+      >
         <Providers>
           <NextTopLoader color="#5750F1" showSpinner={false} />
           <AppShell>{children}</AppShell>
