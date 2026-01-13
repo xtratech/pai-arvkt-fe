@@ -87,6 +87,8 @@ const formatConfigValue = (value: unknown, fallback = "-") => {
   }
 };
 
+const WEB_WIDGET_TYPES = new Set(["WebWidgetChatbot", "WebChatbot"]);
+
 type SessionViewProps = {
   sessionId: string;
 };
@@ -118,6 +120,38 @@ export function SessionView({ sessionId }: SessionViewProps) {
     agent_kb_key_name: rawConfig.agent_kb_key_name || "x-api-key",
     web_widget_api_key_name: rawConfig.web_widget_api_key_name || "x-api-key",
   };
+  const sessionType = typeof sessionConfig.type === "string" ? sessionConfig.type : "";
+  const isWebWidgetType = WEB_WIDGET_TYPES.has(sessionType);
+  const hasChatApi =
+    Boolean(
+      sessionConfig.chat_api_endpoint ||
+        sessionConfig.chat_api_key ||
+        sessionConfig.train_chatbot_command ||
+        sessionConfig.chat_api_request_schema ||
+        sessionConfig.chat_api_response_schema,
+    ) || sessionConfig.chat_api_key_name !== "x-api-key";
+  const hasAgentConfig =
+    Boolean(sessionConfig.agent_config_endpoint || sessionConfig.agent_config_key) ||
+    sessionConfig.agent_config_key_name !== "x-api-key";
+  const hasAgentKb =
+    Boolean(sessionConfig.agent_kb_endpoint || sessionConfig.agent_kb_key) ||
+    sessionConfig.agent_kb_key_name !== "x-api-key";
+  const hasWebWidgetSettings =
+    Boolean(
+      sessionConfig.web_widget_title ||
+        sessionConfig.web_widget_position ||
+        sessionConfig.web_widget_primary_color ||
+        sessionConfig.web_widget_secondary_color ||
+        sessionConfig.web_widget_capture_fields ||
+        sessionConfig.web_widget_api_endpoint ||
+        sessionConfig.web_widget_api_key ||
+        sessionConfig.web_widget_loader_url,
+    ) ||
+    typeof sessionConfig.web_widget_require_consent === "boolean" ||
+    typeof sessionConfig.web_widget_escalation_enabled === "boolean" ||
+    typeof sessionConfig.web_widget_debug === "boolean" ||
+    sessionConfig.web_widget_api_key_name !== "x-api-key";
+  const hasIntegrations = hasChatApi || hasAgentConfig || hasAgentKb;
 
   useEffect(() => {
     let active = true;
@@ -219,30 +253,24 @@ export function SessionView({ sessionId }: SessionViewProps) {
         </div>
       )}
       <div className="col-span-12 rounded-[10px] bg-white p-6 shadow-1 dark:bg-gray-dark dark:shadow-card">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-          <h2 className="text-body-2xlg font-bold text-dark dark:text-white">
-            {session.name}
-          </h2>
-          <div className="flex flex-wrap items-center gap-3 text-sm">
-            <div className="flex items-center gap-4 text-sm">
-              {session.status && (
-                <span className="rounded-full bg-gray-2 px-3 py-1 text-xs text-dark dark:bg-dark-2 dark:text-dark-6">
-                  {prettyStatus(session.status)}
-                </span>
-              )}
-              {typeof session.overall_score !== "undefined" && (
-                <span className="text-sm">
-                  <span className="text-dark-5 dark:text-dark-6">Score: </span>
-                  {session.overall_score}%
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Link
-                href={`/session/edit?id=${session.id}`}
-                className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90"
-              >
-                Edit Agent
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-body-2xlg font-bold text-dark dark:text-white">
+              {session.name}
+            </h2>
+            <p className="mt-1 text-sm text-dark-5 dark:text-dark-6">
+              <span className="font-mono">{session.id}</span>
+              {session.updated_at
+                ? ` - Updated ${formatDateTime(session.updated_at)}`
+                : ""}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/session/edit?id=${session.id}`}
+              className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90"
+            >
+              Edit Agent
             </Link>
             <Link
               href={`/chat-editor?session_id=${encodeURIComponent(session.id)}`}
@@ -250,143 +278,239 @@ export function SessionView({ sessionId }: SessionViewProps) {
             >
               Chat Editor
             </Link>
-              <button
-                type="button"
-                className="inline-flex items-center rounded-lg border border-red-200 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-red-600 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40"
-                onClick={() => {
-                  setDeleteError(null);
-                  setConfirmDeleteSession(true);
-                }}
-                disabled={deleting}
-              >
-                {deleting ? "Deleting..." : "Delete Agent"}
-              </button>
-            </div>
+            <button
+              type="button"
+              className="inline-flex items-center rounded-lg border border-red-200 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-red-600 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40"
+              onClick={() => {
+                setDeleteError(null);
+                setConfirmDeleteSession(true);
+              }}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting..." : "Delete Agent"}
+            </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-12 gap-6">
-          <div className="col-span-12">
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-              <dt className="text-dark-5 dark:text-dark-6">ID</dt>
-              <dd className="text-dark dark:text-white">{session.id}</dd>
-              <dt className="text-dark-5 dark:text-dark-6">Created</dt>
-              <dd className="text-dark dark:text-white">
-                {formatDateTime(session.created_at)}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Updated</dt>
-              <dd className="text-dark dark:text-white">
-                {formatDateTime(session.updated_at)}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">User</dt>
-              <dd className="text-dark dark:text-white">
-                {session.user_id || "-"}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Type</dt>
-              <dd className="text-dark dark:text-white">
-                {formatConfigValue(sessionConfig.type)}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Mode</dt>
-              <dd className="text-dark dark:text-white">
-                {formatConfigValue(sessionConfig.mode)}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Max Iterations</dt>
-              <dd className="text-dark dark:text-white">
-                {formatConfigValue(sessionConfig.max_iterations)}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Chat API Endpoint</dt>
-              <dd className="break-all text-dark dark:text-white">
-                {formatConfigValue(sessionConfig.chat_api_endpoint)}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Chat API Key Name</dt>
-              <dd className="text-dark dark:text-white">
-                {formatConfigValue(sessionConfig.chat_api_key_name, "x-api-key")}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Chat API Key</dt>
-              <dd className="break-all text-dark dark:text-white">
-                {maskSecretValue(sessionConfig.chat_api_key)}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Train Agent Command</dt>
-              <dd className="break-all text-dark dark:text-white">
-                {formatConfigValue(sessionConfig.train_chatbot_command)}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Agent Config Endpoint</dt>
-              <dd className="break-all text-dark dark:text-white">
-                {formatConfigValue(sessionConfig.agent_config_endpoint)}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Agent Config Key Name</dt>
-              <dd className="text-dark dark:text-white">
-                {formatConfigValue(sessionConfig.agent_config_key_name, "x-api-key")}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Agent Config Key</dt>
-              <dd className="break-all text-dark dark:text-white">
-                {maskSecretValue(sessionConfig.agent_config_key)}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Agent KB Endpoint</dt>
-              <dd className="break-all text-dark dark:text-white">
-                {formatConfigValue(sessionConfig.agent_kb_endpoint)}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Agent KB Key Name</dt>
-              <dd className="text-dark dark:text-white">
-                {formatConfigValue(sessionConfig.agent_kb_key_name, "x-api-key")}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Agent KB Key</dt>
-              <dd className="break-all text-dark dark:text-white">
-                {maskSecretValue(sessionConfig.agent_kb_key)}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Web Widget Title</dt>
-              <dd className="text-dark dark:text-white">
-                {formatConfigValue(sessionConfig.web_widget_title)}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Web Widget Position</dt>
-              <dd className="text-dark dark:text-white">
-                {formatConfigValue(sessionConfig.web_widget_position)}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Web Widget Primary Color</dt>
-              <dd className="text-dark dark:text-white">
-                {formatConfigValue(sessionConfig.web_widget_primary_color)}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Web Widget Secondary Color</dt>
-              <dd className="text-dark dark:text-white">
-                {formatConfigValue(sessionConfig.web_widget_secondary_color)}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Web Widget Require Consent</dt>
-              <dd className="text-dark dark:text-white">
-                {formatConfigValue(sessionConfig.web_widget_require_consent)}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Web Widget Capture Fields</dt>
-              <dd className="text-dark dark:text-white">
-                {formatConfigValue(sessionConfig.web_widget_capture_fields)}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Web Widget Escalation Enabled</dt>
-              <dd className="text-dark dark:text-white">
-                {formatConfigValue(sessionConfig.web_widget_escalation_enabled)}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Web Widget Debug</dt>
-              <dd className="text-dark dark:text-white">
-                {formatConfigValue(sessionConfig.web_widget_debug)}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Web Widget API Endpoint</dt>
-              <dd className="break-all text-dark dark:text-white">
-                {formatConfigValue(sessionConfig.web_widget_api_endpoint)}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Web Widget API Key Name</dt>
-              <dd className="text-dark dark:text-white">
-                {formatConfigValue(sessionConfig.web_widget_api_key_name, "x-api-key")}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Web Widget API Key</dt>
-              <dd className="break-all text-dark dark:text-white">
-                {maskSecretValue(sessionConfig.web_widget_api_key)}
-              </dd>
-              <dt className="text-dark-5 dark:text-dark-6">Web Widget Loader URL</dt>
-              <dd className="break-all text-dark dark:text-white">
-                {formatConfigValue(sessionConfig.web_widget_loader_url)}
-              </dd>
-            </dl>
-          </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+          {session.status && (
+            <span className="rounded-full bg-gray-2 px-3 py-1 font-semibold text-dark dark:bg-dark-2 dark:text-dark-6">
+              Status: {prettyStatus(session.status)}
+            </span>
+          )}
+          {sessionType && (
+            <span className="rounded-full bg-gray-2 px-3 py-1 font-semibold text-dark dark:bg-dark-2 dark:text-dark-6">
+              Type: {sessionType}
+            </span>
+          )}
+          {typeof session.overall_score !== "undefined" && (
+            <span className="rounded-full bg-gray-2 px-3 py-1 font-semibold text-dark dark:bg-dark-2 dark:text-dark-6">
+              Score: {session.overall_score}%
+            </span>
+          )}
         </div>
       </div>
 
+      <div className="col-span-12 lg:col-span-6 rounded-[10px] bg-white p-6 shadow-1 dark:bg-gray-dark dark:shadow-card">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-base font-semibold text-dark dark:text-white">Basics</h3>
+          <p className="text-sm text-dark-5 dark:text-dark-6">
+            Key facts and ownership details for this agent.
+          </p>
+        </div>
+        <dl className="mt-4 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+          <dt className="text-dark-5 dark:text-dark-6">Agent ID</dt>
+          <dd className="font-mono text-dark dark:text-white">{session.id}</dd>
+          <dt className="text-dark-5 dark:text-dark-6">Created</dt>
+          <dd className="text-dark dark:text-white">
+            {formatDateTime(session.created_at)}
+          </dd>
+          <dt className="text-dark-5 dark:text-dark-6">Updated</dt>
+          <dd className="text-dark dark:text-white">
+            {formatDateTime(session.updated_at)}
+          </dd>
+          <dt className="text-dark-5 dark:text-dark-6">User</dt>
+          <dd className="text-dark dark:text-white">
+            {session.user_id || "-"}
+          </dd>
+          <dt className="text-dark-5 dark:text-dark-6">Type</dt>
+          <dd className="text-dark dark:text-white">
+            {formatConfigValue(sessionConfig.type)}
+          </dd>
+          <dt className="text-dark-5 dark:text-dark-6">Mode</dt>
+          <dd className="text-dark dark:text-white">
+            {formatConfigValue(sessionConfig.mode)}
+          </dd>
+          <dt className="text-dark-5 dark:text-dark-6">Max Iterations</dt>
+          <dd className="text-dark dark:text-white">
+            {formatConfigValue(sessionConfig.max_iterations)}
+          </dd>
+        </dl>
+      </div>
+
+      <div className="col-span-12 lg:col-span-6 rounded-[10px] bg-white p-6 shadow-1 dark:bg-gray-dark dark:shadow-card">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-base font-semibold text-dark dark:text-white">Integrations</h3>
+          <p className="text-sm text-dark-5 dark:text-dark-6">
+            Connection details for chat delivery and knowledge sources.
+          </p>
+        </div>
+        {!hasIntegrations ? (
+          <p className="mt-4 text-sm text-dark-5 dark:text-dark-6">
+            No integrations configured yet.
+          </p>
+        ) : (
+          <div className="mt-4 space-y-4">
+            {hasChatApi ? (
+              <div className="rounded-md border border-gray-2 p-3 dark:border-dark-3">
+                <h4 className="text-sm font-semibold text-dark dark:text-white">Chat API</h4>
+                <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+                  <dt className="text-dark-5 dark:text-dark-6">Endpoint</dt>
+                  <dd className="break-all text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.chat_api_endpoint)}
+                  </dd>
+                  <dt className="text-dark-5 dark:text-dark-6">Key Name</dt>
+                  <dd className="text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.chat_api_key_name, "x-api-key")}
+                  </dd>
+                  <dt className="text-dark-5 dark:text-dark-6">Key</dt>
+                  <dd className="break-all text-dark dark:text-white">
+                    {maskSecretValue(sessionConfig.chat_api_key)}
+                  </dd>
+                  <dt className="text-dark-5 dark:text-dark-6">Train Command</dt>
+                  <dd className="break-all text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.train_chatbot_command)}
+                  </dd>
+                </dl>
+              </div>
+            ) : null}
+
+            {hasAgentConfig ? (
+              <div className="rounded-md border border-gray-2 p-3 dark:border-dark-3">
+                <h4 className="text-sm font-semibold text-dark dark:text-white">Agent Config</h4>
+                <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+                  <dt className="text-dark-5 dark:text-dark-6">Endpoint</dt>
+                  <dd className="break-all text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.agent_config_endpoint)}
+                  </dd>
+                  <dt className="text-dark-5 dark:text-dark-6">Key Name</dt>
+                  <dd className="text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.agent_config_key_name, "x-api-key")}
+                  </dd>
+                  <dt className="text-dark-5 dark:text-dark-6">Key</dt>
+                  <dd className="break-all text-dark dark:text-white">
+                    {maskSecretValue(sessionConfig.agent_config_key)}
+                  </dd>
+                </dl>
+              </div>
+            ) : null}
+
+            {hasAgentKb ? (
+              <div className="rounded-md border border-gray-2 p-3 dark:border-dark-3">
+                <h4 className="text-sm font-semibold text-dark dark:text-white">Agent KB</h4>
+                <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+                  <dt className="text-dark-5 dark:text-dark-6">Endpoint</dt>
+                  <dd className="break-all text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.agent_kb_endpoint)}
+                  </dd>
+                  <dt className="text-dark-5 dark:text-dark-6">Key Name</dt>
+                  <dd className="text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.agent_kb_key_name, "x-api-key")}
+                  </dd>
+                  <dt className="text-dark-5 dark:text-dark-6">Key</dt>
+                  <dd className="break-all text-dark dark:text-white">
+                    {maskSecretValue(sessionConfig.agent_kb_key)}
+                  </dd>
+                </dl>
+              </div>
+            ) : null}
+          </div>
+        )}
+      </div>
+
+      {isWebWidgetType ? (
+        <div className="col-span-12 rounded-[10px] bg-white p-6 shadow-1 dark:bg-gray-dark dark:shadow-card">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-base font-semibold text-dark dark:text-white">Web Widget</h3>
+            <p className="text-sm text-dark-5 dark:text-dark-6">
+              Widget appearance, behavior, and integration settings.
+            </p>
+          </div>
+          {!hasWebWidgetSettings ? (
+            <p className="mt-4 text-sm text-dark-5 dark:text-dark-6">
+              No web widget settings configured yet.
+            </p>
+          ) : (
+            <div className="mt-4 space-y-4">
+              <div className="rounded-md border border-gray-2 p-3 dark:border-dark-3">
+                <h4 className="text-sm font-semibold text-dark dark:text-white">Experience</h4>
+                <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+                  <dt className="text-dark-5 dark:text-dark-6">Title</dt>
+                  <dd className="text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.web_widget_title)}
+                  </dd>
+                  <dt className="text-dark-5 dark:text-dark-6">Position</dt>
+                  <dd className="text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.web_widget_position)}
+                  </dd>
+                  <dt className="text-dark-5 dark:text-dark-6">Primary Color</dt>
+                  <dd className="text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.web_widget_primary_color)}
+                  </dd>
+                  <dt className="text-dark-5 dark:text-dark-6">Secondary Color</dt>
+                  <dd className="text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.web_widget_secondary_color)}
+                  </dd>
+                </dl>
+              </div>
+
+              <div className="rounded-md border border-gray-2 p-3 dark:border-dark-3">
+                <h4 className="text-sm font-semibold text-dark dark:text-white">Behavior</h4>
+                <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+                  <dt className="text-dark-5 dark:text-dark-6">Require Consent</dt>
+                  <dd className="text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.web_widget_require_consent)}
+                  </dd>
+                  <dt className="text-dark-5 dark:text-dark-6">Capture Fields</dt>
+                  <dd className="text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.web_widget_capture_fields)}
+                  </dd>
+                  <dt className="text-dark-5 dark:text-dark-6">Escalation Enabled</dt>
+                  <dd className="text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.web_widget_escalation_enabled)}
+                  </dd>
+                  <dt className="text-dark-5 dark:text-dark-6">Debug</dt>
+                  <dd className="text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.web_widget_debug)}
+                  </dd>
+                </dl>
+              </div>
+
+              <div className="rounded-md border border-gray-2 p-3 dark:border-dark-3">
+                <h4 className="text-sm font-semibold text-dark dark:text-white">Integration</h4>
+                <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+                  <dt className="text-dark-5 dark:text-dark-6">API Endpoint</dt>
+                  <dd className="break-all text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.web_widget_api_endpoint)}
+                  </dd>
+                  <dt className="text-dark-5 dark:text-dark-6">API Key Name</dt>
+                  <dd className="text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.web_widget_api_key_name, "x-api-key")}
+                  </dd>
+                  <dt className="text-dark-5 dark:text-dark-6">API Key</dt>
+                  <dd className="break-all text-dark dark:text-white">
+                    {maskSecretValue(sessionConfig.web_widget_api_key)}
+                  </dd>
+                  <dt className="text-dark-5 dark:text-dark-6">Loader URL</dt>
+                  <dd className="break-all text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.web_widget_loader_url)}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : null}
 
       {confirmDeleteSession ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -421,7 +545,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
           </div>
         </div>
       ) : null}
-
     </div>
   );
 }

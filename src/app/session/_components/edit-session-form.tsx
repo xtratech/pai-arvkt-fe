@@ -11,6 +11,7 @@ import {
 } from "@/services/sessions";
 
 const DEFAULT_KEY_NAME = "x-api-key";
+const WEB_WIDGET_TYPES = new Set(["WebWidgetChatbot", "WebChatbot"]);
 
 type FormState = {
   name: string;
@@ -168,6 +169,7 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const isWebWidgetType = WEB_WIDGET_TYPES.has(form.type);
 
   useEffect(() => {
     let active = true;
@@ -401,7 +403,8 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
               <option value="API">API</option>
             </select>
             <p className="mt-1 text-xs text-dark-5 dark:text-dark-6">
-              Choose the primary channel for this agent.
+              Choose the primary channel for this agent. Web Widget settings appear when Type is
+              WebWidgetChatbot or WebChatbot.
             </p>
           </div>
           <div className="md:col-span-2">
@@ -425,7 +428,8 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
         </div>
       </div>
 
-      <div className="rounded-lg border border-stroke p-4 dark:border-dark-3">
+      {isWebWidgetType ? (
+        <div className="rounded-lg border border-stroke p-4 dark:border-dark-3">
         <div className="flex flex-col gap-1">
           <h3 className="text-base font-semibold text-dark dark:text-white">Web Widget</h3>
           <p className="text-sm text-dark-5 dark:text-dark-6">
@@ -657,7 +661,8 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      ) : null}
 
       <details className="rounded-lg border border-stroke p-4 dark:border-dark-3 [&>summary::-webkit-details-marker]:hidden">
         <summary className="flex cursor-pointer items-start justify-between gap-4">
