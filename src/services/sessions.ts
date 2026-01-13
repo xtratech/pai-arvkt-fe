@@ -44,6 +44,14 @@ export type SessionConfig = {
   web_widget_api_key?: string;
   web_widget_api_key_name?: string;
   web_widget_loader_url?: string;
+  web_widget_title?: string;
+  web_widget_position?: string;
+  web_widget_primary_color?: string;
+  web_widget_secondary_color?: string;
+  web_widget_require_consent?: boolean;
+  web_widget_capture_fields?: string;
+  web_widget_escalation_enabled?: boolean;
+  web_widget_debug?: boolean;
   [key: string]: unknown;
 };
 

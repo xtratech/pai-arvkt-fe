@@ -32,6 +32,14 @@ type FormState = {
   web_widget_api_key: string;
   web_widget_api_key_name: string;
   web_widget_loader_url: string;
+  web_widget_title: string;
+  web_widget_position: string;
+  web_widget_primary_color: string;
+  web_widget_secondary_color: string;
+  web_widget_require_consent: string;
+  web_widget_capture_fields: string;
+  web_widget_escalation_enabled: string;
+  web_widget_debug: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -54,6 +62,14 @@ const EMPTY_FORM: FormState = {
   web_widget_api_key: "",
   web_widget_api_key_name: DEFAULT_KEY_NAME,
   web_widget_loader_url: "",
+  web_widget_title: "",
+  web_widget_position: "",
+  web_widget_primary_color: "",
+  web_widget_secondary_color: "",
+  web_widget_require_consent: "",
+  web_widget_capture_fields: "",
+  web_widget_escalation_enabled: "",
+  web_widget_debug: "",
 };
 
 function decodeBase64Url(input: string) {
@@ -124,6 +140,14 @@ function parseMaybeJson(value: string): unknown {
   }
 }
 
+function parseBooleanValue(value: string): boolean | undefined {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return undefined;
+  if (trimmed === "true") return true;
+  if (trimmed === "false") return false;
+  return undefined;
+}
+
 export function EditSessionForm({ sessionId }: { sessionId: string }) {
   const { attributes, user, tokens } = useUser();
   const router = useRouter();
@@ -187,6 +211,14 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
           web_widget_api_key: toDisplayable(cfg.web_widget_api_key),
           web_widget_api_key_name: toDisplayable(cfg.web_widget_api_key_name) || DEFAULT_KEY_NAME,
           web_widget_loader_url: toDisplayable(cfg.web_widget_loader_url),
+          web_widget_title: toDisplayable(cfg.web_widget_title),
+          web_widget_position: toDisplayable(cfg.web_widget_position),
+          web_widget_primary_color: toDisplayable(cfg.web_widget_primary_color),
+          web_widget_secondary_color: toDisplayable(cfg.web_widget_secondary_color),
+          web_widget_require_consent: toDisplayable(cfg.web_widget_require_consent),
+          web_widget_capture_fields: toDisplayable(cfg.web_widget_capture_fields),
+          web_widget_escalation_enabled: toDisplayable(cfg.web_widget_escalation_enabled),
+          web_widget_debug: toDisplayable(cfg.web_widget_debug),
         });
       } catch (err) {
         if (!active) return;
@@ -250,6 +282,14 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
           web_widget_api_key_name:
             normalizeString(form.web_widget_api_key_name) || DEFAULT_KEY_NAME,
           web_widget_loader_url: normalizeString(form.web_widget_loader_url),
+          web_widget_title: normalizeString(form.web_widget_title),
+          web_widget_position: normalizeString(form.web_widget_position),
+          web_widget_primary_color: normalizeString(form.web_widget_primary_color),
+          web_widget_secondary_color: normalizeString(form.web_widget_secondary_color),
+          web_widget_require_consent: parseBooleanValue(form.web_widget_require_consent),
+          web_widget_capture_fields: normalizeString(form.web_widget_capture_fields),
+          web_widget_escalation_enabled: parseBooleanValue(form.web_widget_escalation_enabled),
+          web_widget_debug: parseBooleanValue(form.web_widget_debug),
         };
 
         const updated = await updateSession(userId, sessionId, {
@@ -551,6 +591,134 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
       <div className="space-y-3 rounded-lg border border-stroke p-4 dark:border-dark-3">
         <h3 className="text-base font-semibold text-dark dark:text-white">Web Widget</h3>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_title">
+              Web Widget Title
+            </label>
+            <input
+              id="web_widget_title"
+              name="web_widget_title"
+              type="text"
+              value={form.web_widget_title}
+              onChange={handleChange}
+              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+              placeholder="Support Assistant"
+              disabled={saving}
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_position">
+              Position
+            </label>
+            <select
+              id="web_widget_position"
+              name="web_widget_position"
+              value={form.web_widget_position}
+              onChange={handleChange}
+              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+              disabled={saving}
+            >
+              <option value="">Select a position</option>
+              <option value="left">left</option>
+              <option value="right">right</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_primary_color">
+              Primary Color
+            </label>
+            <input
+              id="web_widget_primary_color"
+              name="web_widget_primary_color"
+              type="text"
+              value={form.web_widget_primary_color}
+              onChange={handleChange}
+              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+              placeholder="#0f172a"
+              disabled={saving}
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_secondary_color">
+              Secondary Color
+            </label>
+            <input
+              id="web_widget_secondary_color"
+              name="web_widget_secondary_color"
+              type="text"
+              value={form.web_widget_secondary_color}
+              onChange={handleChange}
+              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+              placeholder="#f8fafc"
+              disabled={saving}
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_require_consent">
+              Require Consent
+            </label>
+            <select
+              id="web_widget_require_consent"
+              name="web_widget_require_consent"
+              value={form.web_widget_require_consent}
+              onChange={handleChange}
+              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+              disabled={saving}
+            >
+              <option value="">Select</option>
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>
+          </div>
+          <div className="md:col-span-2">
+            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_capture_fields">
+              Capture Fields (CSV)
+            </label>
+            <input
+              id="web_widget_capture_fields"
+              name="web_widget_capture_fields"
+              type="text"
+              value={form.web_widget_capture_fields}
+              onChange={handleChange}
+              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+              placeholder="name,email,phone"
+              disabled={saving}
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_escalation_enabled">
+              Escalation Enabled
+            </label>
+            <select
+              id="web_widget_escalation_enabled"
+              name="web_widget_escalation_enabled"
+              value={form.web_widget_escalation_enabled}
+              onChange={handleChange}
+              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+              disabled={saving}
+            >
+              <option value="">Select</option>
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_debug">
+              Debug
+            </label>
+            <select
+              id="web_widget_debug"
+              name="web_widget_debug"
+              value={form.web_widget_debug}
+              onChange={handleChange}
+              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+              disabled={saving}
+            >
+              <option value="">Select</option>
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>
+          </div>
           <div>
             <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_api_endpoint">
               Web Widget API Endpoint

@@ -334,6 +334,38 @@ export function SessionView({ sessionId }: SessionViewProps) {
               <dd className="break-all text-dark dark:text-white">
                 {maskSecretValue(sessionConfig.agent_kb_key)}
               </dd>
+              <dt className="text-dark-5 dark:text-dark-6">Web Widget Title</dt>
+              <dd className="text-dark dark:text-white">
+                {formatConfigValue(sessionConfig.web_widget_title)}
+              </dd>
+              <dt className="text-dark-5 dark:text-dark-6">Web Widget Position</dt>
+              <dd className="text-dark dark:text-white">
+                {formatConfigValue(sessionConfig.web_widget_position)}
+              </dd>
+              <dt className="text-dark-5 dark:text-dark-6">Web Widget Primary Color</dt>
+              <dd className="text-dark dark:text-white">
+                {formatConfigValue(sessionConfig.web_widget_primary_color)}
+              </dd>
+              <dt className="text-dark-5 dark:text-dark-6">Web Widget Secondary Color</dt>
+              <dd className="text-dark dark:text-white">
+                {formatConfigValue(sessionConfig.web_widget_secondary_color)}
+              </dd>
+              <dt className="text-dark-5 dark:text-dark-6">Web Widget Require Consent</dt>
+              <dd className="text-dark dark:text-white">
+                {formatConfigValue(sessionConfig.web_widget_require_consent)}
+              </dd>
+              <dt className="text-dark-5 dark:text-dark-6">Web Widget Capture Fields</dt>
+              <dd className="text-dark dark:text-white">
+                {formatConfigValue(sessionConfig.web_widget_capture_fields)}
+              </dd>
+              <dt className="text-dark-5 dark:text-dark-6">Web Widget Escalation Enabled</dt>
+              <dd className="text-dark dark:text-white">
+                {formatConfigValue(sessionConfig.web_widget_escalation_enabled)}
+              </dd>
+              <dt className="text-dark-5 dark:text-dark-6">Web Widget Debug</dt>
+              <dd className="text-dark dark:text-white">
+                {formatConfigValue(sessionConfig.web_widget_debug)}
+              </dd>
               <dt className="text-dark-5 dark:text-dark-6">Web Widget API Endpoint</dt>
               <dd className="break-all text-dark dark:text-white">
                 {formatConfigValue(sessionConfig.web_widget_api_endpoint)}
