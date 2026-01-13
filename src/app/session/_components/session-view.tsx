@@ -529,8 +529,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
           captureFields={sessionConfig.web_widget_capture_fields}
           escalationEnabled={sessionConfig.web_widget_escalation_enabled}
           debug={sessionConfig.web_widget_debug}
-          apiBase={sessionConfig.web_widget_api_endpoint}
-          apiKey={sessionConfig.web_widget_api_key}
         />
       ) : null}
 

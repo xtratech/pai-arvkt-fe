@@ -23,8 +23,6 @@ type WidgetLoaderProps = {
   captureFields?: string | null;
   escalationEnabled?: boolean | string | null;
   debug?: boolean | string | null;
-  apiBase?: string | null;
-  apiKey?: string | null;
 };
 
 function normalizeString(value?: string | null) {
@@ -84,8 +82,6 @@ export function WidgetLoader({
   captureFields,
   escalationEnabled,
   debug,
-  apiBase,
-  apiKey,
 }: WidgetLoaderProps) {
   useEffect(() => {
     const normalizedLoaderUrl = normalizeString(loaderUrl);
@@ -137,9 +133,9 @@ export function WidgetLoader({
       normalizeBoolean(escalationEnabled),
     );
     setBooleanAttribute(script, "data-debug", normalizeBoolean(debug));
-
-    setDataAttribute(script, "data-api-base", normalizeString(apiBase));
-    setDataAttribute(script, "data-api-key", normalizeString(apiKey));
+    // Never pass API credentials through the loader attributes.
+    script.removeAttribute("data-api-base");
+    script.removeAttribute("data-api-key");
 
     const normalizedSecondary = normalizeString(secondaryColor);
     const existingStyle = document.getElementById(SECONDARY_STYLE_ID) as
@@ -177,8 +173,6 @@ export function WidgetLoader({
       }
     };
   }, [
-    apiBase,
-    apiKey,
     captureFields,
     debug,
     escalationEnabled,
