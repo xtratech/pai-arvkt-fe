@@ -1,4 +1,5 @@
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
+import { Alert } from "@/components/ui-elements/alert";
 import type { Metadata } from "next";
 import { SessionView } from "./_components/session-view";
 import { CreateSessionForm } from "./_components/create-session-form";
@@ -41,6 +42,12 @@ export default async function SessionPage({
   return (
     <div className="mx-auto w-full max-w-[1460px]">
       <Breadcrumb pageName="Agent" />
+      <Alert
+        variant="warning"
+        title="Editing disclaimer"
+        description="Do not edit this agent unless you are accompanied by Pluree AI personnel."
+        className="mt-6"
+      />
       <SessionView sessionId={id} />
     </div>
   );

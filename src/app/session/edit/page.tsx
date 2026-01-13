@@ -1,4 +1,5 @@
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
+import { Alert } from "@/components/ui-elements/alert";
 import type { Metadata } from "next";
 import { EditSessionForm } from "../_components/edit-session-form";
 
@@ -31,6 +32,12 @@ export default async function EditSessionPage({
   return (
     <div className="mx-auto w-full max-w-[1460px]">
       <Breadcrumb pageName="Edit Agent" />
+      <Alert
+        variant="warning"
+        title="Editing disclaimer"
+        description="Do not edit this agent unless you are accompanied by Pluree AI personnel."
+        className="mt-6"
+      />
       <EditSessionForm sessionId={id} />
     </div>
   );
