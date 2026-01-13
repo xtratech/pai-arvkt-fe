@@ -26,7 +26,8 @@ const config: Config = {
         "light-yellow-1": "#FFFF8A",
         // Minimal Cyborg Theme Colors
         obsidian: "#05070c",
-        "neon-cyan": "#22d3ee", // cyan-400
+        "neon-yellow": "#FFFF5C",
+        "neon-lime": "#A9F00F",
         "soft-violet": "#a78bfa", // violet-400
         dark: {
           DEFAULT: "#111928",

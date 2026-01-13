@@ -12,6 +12,7 @@ import { useTheme } from "next-themes";
 import Image from "next/image";
 import Link from "next/link";
 import { type MouseEvent, useEffect, useRef, useState } from "react";
+import { ParticleCanvas } from "./particle-canvas";
 
 // --- Data ---
 
@@ -148,7 +149,7 @@ function GridBackground() {
     return (
         <div className="pointer-events-none absolute inset-0 -z-30 h-full w-full overflow-hidden">
             <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px]"></div>
-            <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-neon-cyan/20 blur-[100px] dark:bg-neon-cyan/10"></div>
+            <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-neon-yellow/20 blur-[100px] dark:bg-neon-yellow/10"></div>
             <div className="absolute bottom-0 right-0 -z-10 h-[400px] w-[400px] rounded-full bg-soft-violet/20 blur-[120px] dark:bg-soft-violet/5"></div>
         </div>
     );
@@ -199,8 +200,9 @@ export function LandingPage() {
             : "/images/logo/logo.svg";
 
     return (
-        <div className="relative min-h-screen w-full overflow-x-hidden bg-slate-50 font-sans text-slate-900 selection:bg-neon-cyan/30 dark:bg-obsidian dark:text-slate-100">
+        <div className="relative min-h-screen w-full overflow-x-hidden bg-slate-50 font-sans text-slate-900 selection:bg-neon-yellow/30 dark:bg-obsidian dark:text-slate-100">
             <GridBackground />
+            <ParticleCanvas />
             <MouseGlow />
 
             {/* Navigation */}
@@ -232,7 +234,7 @@ export function LandingPage() {
                             className="group relative overflow-hidden rounded-full bg-black px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-slate-900 dark:bg-white dark:text-black dark:hover:bg-slate-200"
                         >
                             <span className="relative z-10">Get Started</span>
-                            <div className="absolute inset-0 -z-0 bg-gradient-to-r from-neon-cyan/50 to-soft-violet/50 opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+                            <div className="absolute inset-0 -z-0 bg-gradient-to-r from-neon-yellow/50 to-soft-violet/50 opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
                         </Link>
                     </nav>
                 </div>
@@ -248,11 +250,11 @@ export function LandingPage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8, ease: "easeOut" }}
-                        className="inline-flex items-center gap-2 rounded-full border border-neon-cyan/20 bg-neon-cyan/5 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-neon-cyan dark:border-neon-cyan/30 dark:bg-neon-cyan/10"
+                        className="inline-flex items-center gap-2 rounded-full border border-teal-600/20 bg-teal-600/5 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-teal-700 dark:border-neon-yellow/30 dark:bg-neon-yellow/10 dark:text-neon-yellow"
                     >
                         <span className="relative flex h-2 w-2">
-                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-neon-cyan opacity-75"></span>
-                            <span className="relative inline-flex h-2 w-2 rounded-full bg-neon-cyan"></span>
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal-600 opacity-75 dark:bg-neon-yellow"></span>
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-teal-600 dark:bg-neon-lime"></span>
                         </span>
                         System Online
                     </motion.div>
@@ -285,9 +287,9 @@ export function LandingPage() {
                     >
                         <Link
                             href="/auth/sign-up"
-                            className="relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-full border border-black/10 bg-white/70 px-8 py-4 text-sm font-semibold text-slate-900 shadow-xl shadow-neon-cyan/10 backdrop-blur-sm transition-transform hover:scale-105 active:scale-95 dark:border-white/10 dark:bg-white/10 dark:text-white dark:shadow-neon-cyan/5"
+                            className="relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-full border border-black/10 bg-white/70 px-8 py-4 text-sm font-semibold text-slate-900 shadow-xl shadow-neon-yellow/10 backdrop-blur-sm transition-transform hover:scale-105 active:scale-95 dark:border-white/10 dark:bg-white/10 dark:text-white dark:shadow-neon-yellow/5"
                         >
-                            <span className="absolute inset-0 bg-gradient-to-r from-neon-cyan/10 to-soft-violet/10 opacity-0 transition-opacity hover:opacity-100"></span>
+                            <span className="absolute inset-0 bg-gradient-to-r from-neon-yellow/10 to-soft-violet/10 opacity-0 transition-opacity hover:opacity-100"></span>
                             Initialize Toolkit
                         </Link>
                         <Link
@@ -366,9 +368,9 @@ export function LandingPage() {
                                 whileInView={{ opacity: 1, y: 0 }}
                                 viewport={{ once: true }}
                                 transition={{ delay: idx * 0.1, duration: 0.6 }}
-                                className="group relative overflow-hidden rounded-3xl border border-black/5 bg-white p-8 shadow-sm transition-all hover:border-neon-cyan/50 hover:shadow-2xl hover:shadow-neon-cyan/10 dark:border-white/10 dark:bg-white/5 dark:hover:border-neon-cyan/50"
+                                className="group relative overflow-hidden rounded-3xl border border-black/5 bg-white p-8 shadow-sm transition-all hover:border-neon-yellow/50 hover:shadow-2xl hover:shadow-neon-yellow/10 dark:border-white/10 dark:bg-white/5 dark:hover:border-neon-yellow/50"
                             >
-                                <div className="absolute right-0 top-0 -mr-16 -mt-16 h-32 w-32 rounded-full bg-neon-cyan/10 blur-2xl transition-all group-hover:bg-neon-cyan/20"></div>
+                                <div className="absolute right-0 top-0 -mr-16 -mt-16 h-32 w-32 rounded-full bg-neon-yellow/10 blur-2xl transition-all group-hover:bg-neon-yellow/20"></div>
 
                                 <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white">
                                     {feature.icon}
@@ -409,7 +411,7 @@ export function LandingPage() {
                             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
                                 <Link
                                     href="/auth/sign-up"
-                                    className="rounded-full bg-neon-cyan px-8 py-4 text-sm font-bold text-slate-900 transition-transform hover:scale-105 active:scale-95 dark:bg-black dark:text-white"
+                                    className="rounded-full bg-neon-yellow px-8 py-4 text-sm font-bold text-slate-900 transition-transform hover:scale-105 active:scale-95 dark:bg-black dark:text-white"
                                 >
                                     Start Now
                                 </Link>
@@ -424,7 +426,7 @@ export function LandingPage() {
                 <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-4 text-sm text-slate-500 dark:text-slate-400 sm:flex-row">
                     <p>© {new Date().getFullYear()} Pluree.ai. All rights reserved.</p>
                     <div className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                        <span className="h-2 w-2 rounded-full bg-neon-lime"></span>
                         <span>All Systems Operational</span>
                     </div>
                 </div>

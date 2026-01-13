@@ -86,11 +86,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
       const normalizedAttributes: UserAttributes | null = userAttributes
         ? Object.entries(userAttributes).reduce<UserAttributes>((acc, [key, value]) => {
-            if (typeof value === "string" && value.length > 0) {
-              acc[key] = value;
-            }
-            return acc;
-          }, {})
+          if (typeof value === "string" && value.length > 0) {
+            acc[key] = value;
+          }
+          return acc;
+        }, {})
         : null;
 
       setUser(currentUser);
@@ -138,7 +138,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   useEffect(() => {
-    const unsubscribe = Hub.listen("auth", ({ payload }) => {
+    const unsubscribe = Hub.listen("auth", (data: any) => {
+      const { payload } = data;
       if (payload?.event && AUTH_EVENTS_TO_WATCH.has(payload.event)) {
         refresh();
       }

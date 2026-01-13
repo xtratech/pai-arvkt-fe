@@ -1,6 +1,7 @@
 "use client";
 
 import { del, get, patch, post, put } from "aws-amplify/api";
+// @ts-ignore
 import type { DocumentType } from "@aws-amplify/core/internals/utils";
 
 const DEFAULT_API_NAME =
