@@ -25,6 +25,7 @@ export type SessionRun = {
 };
 
 export type SessionConfig = {
+  type?: string;
   mode?: string;
   max_iterations?: number;
   chat_api_endpoint?: string;
@@ -39,6 +40,10 @@ export type SessionConfig = {
   agent_kb_endpoint?: string;
   agent_kb_key?: string;
   agent_kb_key_name?: string;
+  web_widget_api_endpoint?: string;
+  web_widget_api_key?: string;
+  web_widget_api_key_name?: string;
+  web_widget_loader_url?: string;
   [key: string]: unknown;
 };
 
@@ -102,6 +107,7 @@ const SESSION_CONFIG_DEFAULTS: SessionConfig = {
   chat_api_key_name: "x-api-key",
   agent_config_key_name: "x-api-key",
   agent_kb_key_name: "x-api-key",
+  web_widget_api_key_name: "x-api-key",
 };
 
 function withConfigDefaults(session: SessionRecord): SessionRecord {

@@ -15,6 +15,7 @@ const DEFAULT_KEY_NAME = "x-api-key";
 type FormState = {
   name: string;
   notes: string;
+  type: string;
   chat_api_endpoint: string;
   chat_api_key: string;
   chat_api_key_name: string;
@@ -27,11 +28,16 @@ type FormState = {
   agent_kb_endpoint: string;
   agent_kb_key: string;
   agent_kb_key_name: string;
+  web_widget_api_endpoint: string;
+  web_widget_api_key: string;
+  web_widget_api_key_name: string;
+  web_widget_loader_url: string;
 };
 
 const EMPTY_FORM: FormState = {
   name: "",
   notes: "",
+  type: "",
   chat_api_endpoint: "",
   chat_api_key: "",
   chat_api_key_name: DEFAULT_KEY_NAME,
@@ -44,6 +50,10 @@ const EMPTY_FORM: FormState = {
   agent_kb_endpoint: "",
   agent_kb_key: "",
   agent_kb_key_name: DEFAULT_KEY_NAME,
+  web_widget_api_endpoint: "",
+  web_widget_api_key: "",
+  web_widget_api_key_name: DEFAULT_KEY_NAME,
+  web_widget_loader_url: "",
 };
 
 function decodeBase64Url(input: string) {
@@ -160,6 +170,7 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
         setForm({
           name: fetchedSession.name ?? "",
           notes: fetchedSession.notes ?? "",
+          type: toDisplayable(cfg.type),
           chat_api_endpoint: toDisplayable(cfg.chat_api_endpoint),
           chat_api_key: toDisplayable(cfg.chat_api_key),
           chat_api_key_name: toDisplayable(cfg.chat_api_key_name) || DEFAULT_KEY_NAME,
@@ -172,6 +183,10 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
           agent_kb_endpoint: toDisplayable(cfg.agent_kb_endpoint),
           agent_kb_key: toDisplayable(cfg.agent_kb_key),
           agent_kb_key_name: toDisplayable(cfg.agent_kb_key_name) || DEFAULT_KEY_NAME,
+          web_widget_api_endpoint: toDisplayable(cfg.web_widget_api_endpoint),
+          web_widget_api_key: toDisplayable(cfg.web_widget_api_key),
+          web_widget_api_key_name: toDisplayable(cfg.web_widget_api_key_name) || DEFAULT_KEY_NAME,
+          web_widget_loader_url: toDisplayable(cfg.web_widget_loader_url),
         });
       } catch (err) {
         if (!active) return;
@@ -192,7 +207,7 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
   }, [sessionId, userId]);
 
   const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
       const { name, value } = e.target;
       setForm((prev) => ({ ...prev, [name]: value }));
     },
@@ -215,20 +230,26 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
       setError(null);
       setSuccess(null);
 
-        try {
-          const patchConfig: SessionConfig = {
-            chat_api_endpoint: normalizeString(form.chat_api_endpoint),
-            chat_api_key: normalizeString(form.chat_api_key),
-            chat_api_key_name: normalizeString(form.chat_api_key_name) || DEFAULT_KEY_NAME,
-            chat_api_request_schema: parseMaybeJson(form.chat_api_request_schema),
-            chat_api_response_schema: parseMaybeJson(form.chat_api_response_schema),
-            train_chatbot_command: normalizeString(form.train_chatbot_command),
-            agent_config_endpoint: normalizeString(form.agent_config_endpoint),
-            agent_config_key: normalizeString(form.agent_config_key),
-            agent_config_key_name: normalizeString(form.agent_config_key_name) || DEFAULT_KEY_NAME,
-            agent_kb_endpoint: normalizeString(form.agent_kb_endpoint),
-            agent_kb_key: normalizeString(form.agent_kb_key),
+      try {
+        const patchConfig: SessionConfig = {
+          type: normalizeString(form.type),
+          chat_api_endpoint: normalizeString(form.chat_api_endpoint),
+          chat_api_key: normalizeString(form.chat_api_key),
+          chat_api_key_name: normalizeString(form.chat_api_key_name) || DEFAULT_KEY_NAME,
+          chat_api_request_schema: parseMaybeJson(form.chat_api_request_schema),
+          chat_api_response_schema: parseMaybeJson(form.chat_api_response_schema),
+          train_chatbot_command: normalizeString(form.train_chatbot_command),
+          agent_config_endpoint: normalizeString(form.agent_config_endpoint),
+          agent_config_key: normalizeString(form.agent_config_key),
+          agent_config_key_name: normalizeString(form.agent_config_key_name) || DEFAULT_KEY_NAME,
+          agent_kb_endpoint: normalizeString(form.agent_kb_endpoint),
+          agent_kb_key: normalizeString(form.agent_kb_key),
           agent_kb_key_name: normalizeString(form.agent_kb_key_name) || DEFAULT_KEY_NAME,
+          web_widget_api_endpoint: normalizeString(form.web_widget_api_endpoint),
+          web_widget_api_key: normalizeString(form.web_widget_api_key),
+          web_widget_api_key_name:
+            normalizeString(form.web_widget_api_key_name) || DEFAULT_KEY_NAME,
+          web_widget_loader_url: normalizeString(form.web_widget_loader_url),
         };
 
         const updated = await updateSession(userId, sessionId, {
@@ -293,6 +314,26 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
           />
         </div>
         <div>
+          <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="type">
+            Type
+          </label>
+          <select
+            id="type"
+            name="type"
+            value={form.type}
+            onChange={handleChange}
+            className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+            disabled={saving}
+          >
+            <option value="">Select a type</option>
+            <option value="WebWidgetChatbot">WebWidgetChatbot</option>
+            <option value="IntranetChatbot">IntranetChatbot</option>
+            <option value="WhatsAppChatbot">WhatsAppChatbot</option>
+            <option value="WebChatbot">WebChatbot</option>
+            <option value="API">API</option>
+          </select>
+        </div>
+        <div className="md:col-span-2">
           <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="notes">
             Notes
           </label>
@@ -501,6 +542,72 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
               onChange={handleChange}
               className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
               placeholder="API key"
+              disabled={saving}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3 rounded-lg border border-stroke p-4 dark:border-dark-3">
+        <h3 className="text-base font-semibold text-dark dark:text-white">Web Widget</h3>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_api_endpoint">
+              Web Widget API Endpoint
+            </label>
+            <input
+              id="web_widget_api_endpoint"
+              name="web_widget_api_endpoint"
+              type="text"
+              value={form.web_widget_api_endpoint}
+              onChange={handleChange}
+              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+              placeholder="https://example.com/widget-api"
+              disabled={saving}
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_api_key_name">
+              Web Widget API Key Name
+            </label>
+            <input
+              id="web_widget_api_key_name"
+              name="web_widget_api_key_name"
+              type="text"
+              value={form.web_widget_api_key_name}
+              onChange={handleChange}
+              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+              placeholder={DEFAULT_KEY_NAME}
+              disabled={saving}
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_api_key">
+              Web Widget API Key
+            </label>
+            <input
+              id="web_widget_api_key"
+              name="web_widget_api_key"
+              type="text"
+              value={form.web_widget_api_key}
+              onChange={handleChange}
+              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+              placeholder="API key"
+              disabled={saving}
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_loader_url">
+              Web Widget Loader URL
+            </label>
+            <input
+              id="web_widget_loader_url"
+              name="web_widget_loader_url"
+              type="text"
+              value={form.web_widget_loader_url}
+              onChange={handleChange}
+              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+              placeholder="https://example.com/widget-loader.js"
               disabled={saving}
             />
           </div>
