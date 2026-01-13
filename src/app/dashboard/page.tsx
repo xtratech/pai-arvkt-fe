@@ -39,10 +39,23 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </p>
       </div>
 
+      <div>
+        <h2 className="text-lg font-semibold text-dark dark:text-white">Agents</h2>
+        <p className="text-sm text-dark-5 dark:text-dark-6">
+          Manage your agents and jump back into recent work.
+        </p>
+      </div>
+
       <div className="grid grid-cols-12 gap-4 md:gap-6 2xl:gap-7.5">
         <SessionsCard className="col-span-12" />
       </div>
 
+      <div>
+        <h2 className="text-lg font-semibold text-dark dark:text-white">Token overview</h2>
+        <p className="text-sm text-dark-5 dark:text-dark-6">
+          Track balance, credits added, and overall usage.
+        </p>
+      </div>
       <OverviewCardsGroup />
     </div>
   );
