@@ -10,6 +10,7 @@ import {
   type SessionRecord,
 } from "@/services/sessions";
 import { useUser } from "@/contexts/user-context";
+import { WidgetLoader } from "./widget-loader";
 
 function decodeBase64Url(input: string) {
   const normalized = input.replace(/-/g, '+').replace(/_/g, '/');
@@ -152,6 +153,11 @@ export function SessionView({ sessionId }: SessionViewProps) {
     typeof sessionConfig.web_widget_debug === "boolean" ||
     sessionConfig.web_widget_api_key_name !== "x-api-key";
   const hasIntegrations = hasChatApi || hasAgentConfig || hasAgentKb;
+  const widgetLoaderUrl =
+    typeof sessionConfig.web_widget_loader_url === "string"
+      ? sessionConfig.web_widget_loader_url.trim()
+      : "";
+  const shouldLoadWidget = isWebWidgetType && hasWebWidgetSettings && Boolean(widgetLoaderUrl);
 
   useEffect(() => {
     let active = true;
@@ -510,6 +516,22 @@ export function SessionView({ sessionId }: SessionViewProps) {
             </div>
           )}
         </div>
+      ) : null}
+
+      {shouldLoadWidget ? (
+        <WidgetLoader
+          loaderUrl={widgetLoaderUrl}
+          title={sessionConfig.web_widget_title}
+          position={sessionConfig.web_widget_position}
+          primaryColor={sessionConfig.web_widget_primary_color}
+          secondaryColor={sessionConfig.web_widget_secondary_color}
+          requireConsent={sessionConfig.web_widget_require_consent}
+          captureFields={sessionConfig.web_widget_capture_fields}
+          escalationEnabled={sessionConfig.web_widget_escalation_enabled}
+          debug={sessionConfig.web_widget_debug}
+          apiBase={sessionConfig.web_widget_api_endpoint}
+          apiKey={sessionConfig.web_widget_api_key}
+        />
       ) : null}
 
       {confirmDeleteSession ? (

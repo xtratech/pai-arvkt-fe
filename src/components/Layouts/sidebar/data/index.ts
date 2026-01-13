@@ -42,6 +42,13 @@ export const NAV_DATA: NavSection[] = [
         icon: Icons.Alphabet,
         items: [
         ],
+      },
+      {
+        title: "Tools",
+        url: "/tools",
+        icon: Icons.FourCircle,
+        items: [
+        ],
       }
     ],
   }/*,
