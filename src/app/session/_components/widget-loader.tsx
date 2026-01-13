@@ -7,6 +7,12 @@ const SECONDARY_STYLE_ID = "session-web-widget-secondary-style";
 const WIDGET_ROOT_ID = "quooker-widget-root";
 const WIDGET_STYLE_ID = "quooker-widget-styles";
 
+declare global {
+  interface Window {
+    __QUOOKER_WIDGET_LOADER__?: boolean;
+  }
+}
+
 type WidgetLoaderProps = {
   loaderUrl?: string | null;
   title?: string | null;
@@ -165,9 +171,9 @@ export function WidgetLoader({
       document.getElementById(WIDGET_STYLE_ID)?.remove();
       document.getElementById(SECONDARY_STYLE_ID)?.remove();
 
-      const loaderFlag = (window as Record<string, unknown>).__QUOOKER_WIDGET_LOADER__;
+      const loaderFlag = window.__QUOOKER_WIDGET_LOADER__;
       if (loaderFlag) {
-        delete (window as Record<string, unknown>).__QUOOKER_WIDGET_LOADER__;
+        delete window.__QUOOKER_WIDGET_LOADER__;
       }
     };
   }, [
