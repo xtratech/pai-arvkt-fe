@@ -337,479 +337,578 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
       onSubmit={handleSubmit}
       className="mt-6 space-y-6 rounded-[10px] bg-white p-6 shadow-1 dark:bg-gray-dark dark:shadow-card"
     >
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="space-y-2">
         <div>
-          <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="name">
-            Agent Name
-          </label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            value={form.name}
-            onChange={handleChange}
-            className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-            placeholder="Agent name"
-            disabled={saving}
-          />
+          <h2 className="text-lg font-semibold text-dark dark:text-white">Agent settings</h2>
+          <p className="text-sm text-dark-5 dark:text-dark-6">
+            Update the public-facing details and delivery settings for this agent.
+          </p>
         </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="type">
-            Type
-          </label>
-          <select
-            id="type"
-            name="type"
-            value={form.type}
-            onChange={handleChange}
-            className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+
+        {error ? (
+          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+            {error}
+          </div>
+        ) : null}
+
+        {success ? (
+          <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 dark:border-green-900 dark:bg-green-950/30 dark:text-green-300">
+            {success}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="rounded-lg border border-stroke p-4 dark:border-dark-3">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-base font-semibold text-dark dark:text-white">Basics</h3>
+          <p className="text-sm text-dark-5 dark:text-dark-6">
+            Name and type help your team understand where this agent is used.
+          </p>
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="name">
+              Agent Name
+            </label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              value={form.name}
+              onChange={handleChange}
+              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+              placeholder="Agent name"
+              disabled={saving}
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="type">
+              Type
+            </label>
+            <select
+              id="type"
+              name="type"
+              value={form.type}
+              onChange={handleChange}
+              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+              disabled={saving}
+            >
+              <option value="">Select a type</option>
+              <option value="WebWidgetChatbot">WebWidgetChatbot</option>
+              <option value="IntranetChatbot">IntranetChatbot</option>
+              <option value="WhatsAppChatbot">WhatsAppChatbot</option>
+              <option value="WebChatbot">WebChatbot</option>
+              <option value="API">API</option>
+            </select>
+            <p className="mt-1 text-xs text-dark-5 dark:text-dark-6">
+              Choose the primary channel for this agent.
+            </p>
+          </div>
+          <div className="md:col-span-2">
+            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="notes">
+              Notes
+            </label>
+            <textarea
+              id="notes"
+              name="notes"
+              value={form.notes}
+              onChange={handleChange}
+              rows={3}
+              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+              placeholder="Optional notes"
+              disabled={saving}
+            />
+            <p className="mt-1 text-xs text-dark-5 dark:text-dark-6">
+              Optional internal notes for your team.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-stroke p-4 dark:border-dark-3">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-base font-semibold text-dark dark:text-white">Web Widget</h3>
+          <p className="text-sm text-dark-5 dark:text-dark-6">
+            Configure the embedded widget experience. Leave blank if this agent is not used on the web.
+          </p>
+        </div>
+        <div className="mt-4 space-y-6">
+          <div className="space-y-3">
+            <div>
+              <h4 className="text-sm font-semibold text-dark dark:text-white">Experience</h4>
+              <p className="text-xs text-dark-5 dark:text-dark-6">
+                Title, placement, and visual style for the widget.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_title">
+                  Widget Title
+                </label>
+                <input
+                  id="web_widget_title"
+                  name="web_widget_title"
+                  type="text"
+                  value={form.web_widget_title}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder="Support Assistant"
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_position">
+                  Position
+                </label>
+                <select
+                  id="web_widget_position"
+                  name="web_widget_position"
+                  value={form.web_widget_position}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  disabled={saving}
+                >
+                  <option value="">Select a position</option>
+                  <option value="left">left</option>
+                  <option value="right">right</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_primary_color">
+                  Primary Color
+                </label>
+                <input
+                  id="web_widget_primary_color"
+                  name="web_widget_primary_color"
+                  type="text"
+                  value={form.web_widget_primary_color}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder="#0f172a"
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_secondary_color">
+                  Secondary Color
+                </label>
+                <input
+                  id="web_widget_secondary_color"
+                  name="web_widget_secondary_color"
+                  type="text"
+                  value={form.web_widget_secondary_color}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder="#f8fafc"
+                  disabled={saving}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <h4 className="text-sm font-semibold text-dark dark:text-white">Behavior</h4>
+              <p className="text-xs text-dark-5 dark:text-dark-6">
+                Consent and capture settings for user interactions.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_require_consent">
+                  Require Consent
+                </label>
+                <select
+                  id="web_widget_require_consent"
+                  name="web_widget_require_consent"
+                  value={form.web_widget_require_consent}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  disabled={saving}
+                >
+                  <option value="">Select</option>
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_escalation_enabled">
+                  Escalation Enabled
+                </label>
+                <select
+                  id="web_widget_escalation_enabled"
+                  name="web_widget_escalation_enabled"
+                  value={form.web_widget_escalation_enabled}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  disabled={saving}
+                >
+                  <option value="">Select</option>
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_debug">
+                  Debug Mode
+                </label>
+                <select
+                  id="web_widget_debug"
+                  name="web_widget_debug"
+                  value={form.web_widget_debug}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  disabled={saving}
+                >
+                  <option value="">Select</option>
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+              </div>
+              <div className="md:col-span-2">
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_capture_fields">
+                  Capture Fields (CSV)
+                </label>
+                <input
+                  id="web_widget_capture_fields"
+                  name="web_widget_capture_fields"
+                  type="text"
+                  value={form.web_widget_capture_fields}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder="name,email,phone"
+                  disabled={saving}
+                />
+                <p className="mt-1 text-xs text-dark-5 dark:text-dark-6">
+                  Comma-separated list of fields to collect before chat starts.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <h4 className="text-sm font-semibold text-dark dark:text-white">Integration</h4>
+              <p className="text-xs text-dark-5 dark:text-dark-6">
+                Endpoints and keys used by the widget runtime.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_api_endpoint">
+                  Widget API Endpoint
+                </label>
+                <input
+                  id="web_widget_api_endpoint"
+                  name="web_widget_api_endpoint"
+                  type="text"
+                  value={form.web_widget_api_endpoint}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder="https://example.com/widget-api"
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_api_key_name">
+                  Widget API Key Name
+                </label>
+                <input
+                  id="web_widget_api_key_name"
+                  name="web_widget_api_key_name"
+                  type="text"
+                  value={form.web_widget_api_key_name}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder={DEFAULT_KEY_NAME}
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_api_key">
+                  Widget API Key
+                </label>
+                <input
+                  id="web_widget_api_key"
+                  name="web_widget_api_key"
+                  type="text"
+                  value={form.web_widget_api_key}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder="API key"
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_loader_url">
+                  Widget Loader URL
+                </label>
+                <input
+                  id="web_widget_loader_url"
+                  name="web_widget_loader_url"
+                  type="text"
+                  value={form.web_widget_loader_url}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder="https://example.com/widget-loader.js"
+                  disabled={saving}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <details className="rounded-lg border border-stroke p-4 dark:border-dark-3 [&>summary::-webkit-details-marker]:hidden">
+        <summary className="flex cursor-pointer items-start justify-between gap-4">
+          <div>
+            <h3 className="text-base font-semibold text-dark dark:text-white">Advanced integrations</h3>
+            <p className="text-sm text-dark-5 dark:text-dark-6">
+              Optional settings for custom chat APIs, config endpoints, and knowledge base access.
+            </p>
+          </div>
+          <span className="mt-1 text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
+            Optional
+          </span>
+        </summary>
+
+        <div className="mt-4 space-y-6">
+          <div className="space-y-3">
+            <div>
+              <h4 className="text-sm font-semibold text-dark dark:text-white">Chat API</h4>
+              <p className="text-xs text-dark-5 dark:text-dark-6">
+                Use when this agent connects to a custom chat backend.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="chat_api_endpoint">
+                  Chat API Endpoint
+                </label>
+                <input
+                  id="chat_api_endpoint"
+                  name="chat_api_endpoint"
+                  type="text"
+                  value={form.chat_api_endpoint}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder="https://example.com/chat"
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="chat_api_key_name">
+                  Chat API Key Name
+                </label>
+                <input
+                  id="chat_api_key_name"
+                  name="chat_api_key_name"
+                  type="text"
+                  value={form.chat_api_key_name}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder={DEFAULT_KEY_NAME}
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="chat_api_key">
+                  Chat API Key
+                </label>
+                <input
+                  id="chat_api_key"
+                  name="chat_api_key"
+                  type="text"
+                  value={form.chat_api_key}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder="API key"
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="train_chatbot_command">
+                  Train Agent Command
+                </label>
+                <input
+                  id="train_chatbot_command"
+                  name="train_chatbot_command"
+                  type="text"
+                  value={form.train_chatbot_command}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder="/train"
+                  disabled={saving}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="chat_api_request_schema">
+                  Request Schema (JSON)
+                </label>
+                <textarea
+                  id="chat_api_request_schema"
+                  name="chat_api_request_schema"
+                  value={form.chat_api_request_schema}
+                  onChange={handleChange}
+                  rows={5}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder='{"prompt": "string"}'
+                  disabled={saving}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="chat_api_response_schema">
+                  Response Schema (JSON)
+                </label>
+                <textarea
+                  id="chat_api_response_schema"
+                  name="chat_api_response_schema"
+                  value={form.chat_api_response_schema}
+                  onChange={handleChange}
+                  rows={5}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder='{"answer": "string"}'
+                  disabled={saving}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <h4 className="text-sm font-semibold text-dark dark:text-white">Agent Config</h4>
+              <p className="text-xs text-dark-5 dark:text-dark-6">
+                Optional endpoint for live configuration updates.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="agent_config_endpoint">
+                  Agent Config Endpoint
+                </label>
+                <input
+                  id="agent_config_endpoint"
+                  name="agent_config_endpoint"
+                  type="text"
+                  value={form.agent_config_endpoint}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder="https://example.com/config"
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="agent_config_key_name">
+                  Agent Config Key Name
+                </label>
+                <input
+                  id="agent_config_key_name"
+                  name="agent_config_key_name"
+                  type="text"
+                  value={form.agent_config_key_name}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder={DEFAULT_KEY_NAME}
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="agent_config_key">
+                  Agent Config Key
+                </label>
+                <input
+                  id="agent_config_key"
+                  name="agent_config_key"
+                  type="text"
+                  value={form.agent_config_key}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder="API key"
+                  disabled={saving}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <h4 className="text-sm font-semibold text-dark dark:text-white">Agent KB</h4>
+              <p className="text-xs text-dark-5 dark:text-dark-6">
+                Optional knowledge base service integration.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="agent_kb_endpoint">
+                  Agent KB Endpoint
+                </label>
+                <input
+                  id="agent_kb_endpoint"
+                  name="agent_kb_endpoint"
+                  type="text"
+                  value={form.agent_kb_endpoint}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder="https://example.com/kb"
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="agent_kb_key_name">
+                  Agent KB Key Name
+                </label>
+                <input
+                  id="agent_kb_key_name"
+                  name="agent_kb_key_name"
+                  type="text"
+                  value={form.agent_kb_key_name}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder={DEFAULT_KEY_NAME}
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="agent_kb_key">
+                  Agent KB Key
+                </label>
+                <input
+                  id="agent_kb_key"
+                  name="agent_kb_key"
+                  type="text"
+                  value={form.agent_kb_key}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder="API key"
+                  disabled={saving}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-dark-5 dark:text-dark-6">
+          Changes apply immediately after saving.
+        </p>
+        <div className="flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={() => router.push(`/session?id=${sessionId}`)}
+            className="rounded-lg border border-stroke px-4 py-2 text-xs font-semibold uppercase tracking-wide text-dark transition hover:shadow-sm dark:border-dark-3 dark:text-white"
             disabled={saving}
           >
-            <option value="">Select a type</option>
-            <option value="WebWidgetChatbot">WebWidgetChatbot</option>
-            <option value="IntranetChatbot">IntranetChatbot</option>
-            <option value="WhatsAppChatbot">WhatsAppChatbot</option>
-            <option value="WebChatbot">WebChatbot</option>
-            <option value="API">API</option>
-          </select>
-        </div>
-        <div className="md:col-span-2">
-          <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="notes">
-            Notes
-          </label>
-          <textarea
-            id="notes"
-            name="notes"
-            value={form.notes}
-            onChange={handleChange}
-            rows={3}
-            className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-            placeholder="Optional notes"
+            View Agent
+          </button>
+          <button
+            type="submit"
+            className="rounded-lg bg-primary px-5 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={saving}
-          />
+          >
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
         </div>
-      </div>
-
-      <div className="space-y-3 rounded-lg border border-stroke p-4 dark:border-dark-3">
-        <h3 className="text-base font-semibold text-dark dark:text-white">Chat API</h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="chat_api_endpoint">
-              Chat API Endpoint
-            </label>
-            <input
-              id="chat_api_endpoint"
-              name="chat_api_endpoint"
-              type="text"
-              value={form.chat_api_endpoint}
-              onChange={handleChange}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              placeholder="https://example.com/chat"
-              disabled={saving}
-            />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="chat_api_key_name">
-              Chat API Key Name
-            </label>
-            <input
-              id="chat_api_key_name"
-              name="chat_api_key_name"
-              type="text"
-              value={form.chat_api_key_name}
-              onChange={handleChange}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              placeholder={DEFAULT_KEY_NAME}
-              disabled={saving}
-            />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="chat_api_key">
-              Chat API Key
-            </label>
-            <input
-              id="chat_api_key"
-              name="chat_api_key"
-              type="text"
-              value={form.chat_api_key}
-              onChange={handleChange}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              placeholder="API key"
-              disabled={saving}
-            />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="train_chatbot_command">
-              Train Agent Command
-            </label>
-            <input
-              id="train_chatbot_command"
-              name="train_chatbot_command"
-              type="text"
-              value={form.train_chatbot_command}
-              onChange={handleChange}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              placeholder="/train"
-              disabled={saving}
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="chat_api_request_schema">
-              Chat API Endpoint Request Schema
-            </label>
-            <textarea
-              id="chat_api_request_schema"
-              name="chat_api_request_schema"
-              value={form.chat_api_request_schema}
-              onChange={handleChange}
-              rows={5}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              placeholder='{"prompt": "string"}'
-              disabled={saving}
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="chat_api_response_schema">
-              Chat API Endpoint Response Schema
-            </label>
-            <textarea
-              id="chat_api_response_schema"
-              name="chat_api_response_schema"
-              value={form.chat_api_response_schema}
-              onChange={handleChange}
-              rows={5}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              placeholder='{"answer": "string"}'
-              disabled={saving}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-3 rounded-lg border border-stroke p-4 dark:border-dark-3">
-        <h3 className="text-base font-semibold text-dark dark:text-white">Agent Config</h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="agent_config_endpoint">
-              Agent Config Endpoint
-            </label>
-            <input
-              id="agent_config_endpoint"
-              name="agent_config_endpoint"
-              type="text"
-              value={form.agent_config_endpoint}
-              onChange={handleChange}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              placeholder="https://example.com/config"
-              disabled={saving}
-            />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="agent_config_key_name">
-              Agent Config Key Name
-            </label>
-            <input
-              id="agent_config_key_name"
-              name="agent_config_key_name"
-              type="text"
-              value={form.agent_config_key_name}
-              onChange={handleChange}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              placeholder={DEFAULT_KEY_NAME}
-              disabled={saving}
-            />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="agent_config_key">
-              Agent Config Key
-            </label>
-            <input
-              id="agent_config_key"
-              name="agent_config_key"
-              type="text"
-              value={form.agent_config_key}
-              onChange={handleChange}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              placeholder="API key"
-              disabled={saving}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-3 rounded-lg border border-stroke p-4 dark:border-dark-3">
-        <h3 className="text-base font-semibold text-dark dark:text-white">Agent KB</h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="agent_kb_endpoint">
-              Agent KB Endpoint
-            </label>
-            <input
-              id="agent_kb_endpoint"
-              name="agent_kb_endpoint"
-              type="text"
-              value={form.agent_kb_endpoint}
-              onChange={handleChange}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              placeholder="https://example.com/kb"
-              disabled={saving}
-            />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="agent_kb_key_name">
-              Agent KB Key Name
-            </label>
-            <input
-              id="agent_kb_key_name"
-              name="agent_kb_key_name"
-              type="text"
-              value={form.agent_kb_key_name}
-              onChange={handleChange}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              placeholder={DEFAULT_KEY_NAME}
-              disabled={saving}
-            />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="agent_kb_key">
-              Agent KB Key
-            </label>
-            <input
-              id="agent_kb_key"
-              name="agent_kb_key"
-              type="text"
-              value={form.agent_kb_key}
-              onChange={handleChange}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              placeholder="API key"
-              disabled={saving}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-3 rounded-lg border border-stroke p-4 dark:border-dark-3">
-        <h3 className="text-base font-semibold text-dark dark:text-white">Web Widget</h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_title">
-              Web Widget Title
-            </label>
-            <input
-              id="web_widget_title"
-              name="web_widget_title"
-              type="text"
-              value={form.web_widget_title}
-              onChange={handleChange}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              placeholder="Support Assistant"
-              disabled={saving}
-            />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_position">
-              Position
-            </label>
-            <select
-              id="web_widget_position"
-              name="web_widget_position"
-              value={form.web_widget_position}
-              onChange={handleChange}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              disabled={saving}
-            >
-              <option value="">Select a position</option>
-              <option value="left">left</option>
-              <option value="right">right</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_primary_color">
-              Primary Color
-            </label>
-            <input
-              id="web_widget_primary_color"
-              name="web_widget_primary_color"
-              type="text"
-              value={form.web_widget_primary_color}
-              onChange={handleChange}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              placeholder="#0f172a"
-              disabled={saving}
-            />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_secondary_color">
-              Secondary Color
-            </label>
-            <input
-              id="web_widget_secondary_color"
-              name="web_widget_secondary_color"
-              type="text"
-              value={form.web_widget_secondary_color}
-              onChange={handleChange}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              placeholder="#f8fafc"
-              disabled={saving}
-            />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_require_consent">
-              Require Consent
-            </label>
-            <select
-              id="web_widget_require_consent"
-              name="web_widget_require_consent"
-              value={form.web_widget_require_consent}
-              onChange={handleChange}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              disabled={saving}
-            >
-              <option value="">Select</option>
-              <option value="true">true</option>
-              <option value="false">false</option>
-            </select>
-          </div>
-          <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_capture_fields">
-              Capture Fields (CSV)
-            </label>
-            <input
-              id="web_widget_capture_fields"
-              name="web_widget_capture_fields"
-              type="text"
-              value={form.web_widget_capture_fields}
-              onChange={handleChange}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              placeholder="name,email,phone"
-              disabled={saving}
-            />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_escalation_enabled">
-              Escalation Enabled
-            </label>
-            <select
-              id="web_widget_escalation_enabled"
-              name="web_widget_escalation_enabled"
-              value={form.web_widget_escalation_enabled}
-              onChange={handleChange}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              disabled={saving}
-            >
-              <option value="">Select</option>
-              <option value="true">true</option>
-              <option value="false">false</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_debug">
-              Debug
-            </label>
-            <select
-              id="web_widget_debug"
-              name="web_widget_debug"
-              value={form.web_widget_debug}
-              onChange={handleChange}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              disabled={saving}
-            >
-              <option value="">Select</option>
-              <option value="true">true</option>
-              <option value="false">false</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_api_endpoint">
-              Web Widget API Endpoint
-            </label>
-            <input
-              id="web_widget_api_endpoint"
-              name="web_widget_api_endpoint"
-              type="text"
-              value={form.web_widget_api_endpoint}
-              onChange={handleChange}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              placeholder="https://example.com/widget-api"
-              disabled={saving}
-            />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_api_key_name">
-              Web Widget API Key Name
-            </label>
-            <input
-              id="web_widget_api_key_name"
-              name="web_widget_api_key_name"
-              type="text"
-              value={form.web_widget_api_key_name}
-              onChange={handleChange}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              placeholder={DEFAULT_KEY_NAME}
-              disabled={saving}
-            />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_api_key">
-              Web Widget API Key
-            </label>
-            <input
-              id="web_widget_api_key"
-              name="web_widget_api_key"
-              type="text"
-              value={form.web_widget_api_key}
-              onChange={handleChange}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              placeholder="API key"
-              disabled={saving}
-            />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_loader_url">
-              Web Widget Loader URL
-            </label>
-            <input
-              id="web_widget_loader_url"
-              name="web_widget_loader_url"
-              type="text"
-              value={form.web_widget_loader_url}
-              onChange={handleChange}
-              className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              placeholder="https://example.com/widget-loader.js"
-              disabled={saving}
-            />
-          </div>
-        </div>
-      </div>
-
-      {error ? (
-        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
-          {error}
-        </div>
-      ) : null}
-
-      {success ? (
-        <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 dark:border-green-900 dark:bg-green-950/30 dark:text-green-300">
-          {success}
-        </div>
-      ) : null}
-
-      <div className="flex items-center justify-end gap-3">
-        <button
-          type="button"
-          onClick={() => router.push(`/session?id=${sessionId}`)}
-          className="rounded-lg border border-stroke px-4 py-2 text-xs font-semibold uppercase tracking-wide text-dark transition hover:shadow-sm dark:border-dark-3 dark:text-white"
-          disabled={saving}
-        >
-          View Agent
-        </button>
-        <button
-          type="submit"
-          className="rounded-lg bg-primary px-5 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={saving}
-        >
-          {saving ? "Saving..." : "Save Changes"}
-        </button>
       </div>
     </form>
   );
