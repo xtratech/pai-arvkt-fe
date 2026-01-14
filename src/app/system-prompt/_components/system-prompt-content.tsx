@@ -33,6 +33,17 @@ type AgentConfig = {
   candidate_count?: number;
   stop_sequences?: string[];
   response_mime_type?: string;
+  webwidget_model?: string;
+  webwidget_system_prompt?: string;
+  webwidget_suggestions_prompt?: string;
+  webwidget_temperature?: number;
+  webwidget_top_k?: number;
+  webwidget_top_p?: number;
+  webwidget_thinking_level?: string;
+  webwidget_max_output_tokens?: number;
+  webwidget_candidate_count?: number;
+  webwidget_stop_sequences?: string[];
+  webwidget_response_mime_type?: string;
   kb_expert_model?: string;
   kb_expert_system_prompt?: string;
   kb_expert_suggestions_prompt?: string;
@@ -259,6 +270,8 @@ const TRAINING_LABELS: Record<ProfileId, string> = {
   kb_creator: "KB Creator",
 };
 
+const WEB_WIDGET_TYPES = new Set(["WebWidgetChatbot", "WebChatbot"]);
+
 function normalizeModelOptions(input: unknown): ModelOption[] {
   if (!Array.isArray(input)) return [];
   const results: ModelOption[] = [];
@@ -378,6 +391,9 @@ export function SystemPromptContent({
   const dirtyRef = useRef(false);
   const [session, setSession] = useState<SessionRecord | null>(initialSession ?? null);
   const sessionConfig = useMemo(() => session?.config ?? {}, [session]);
+  const sessionType = typeof (sessionConfig as any)?.type === "string" ? String((sessionConfig as any).type) : "";
+  const isWebWidgetType = WEB_WIDGET_TYPES.has(sessionType);
+  const defaultAssistantLabel = isWebWidgetType ? "Web Widget Assistant" : "Default Assistant";
   const sessionUserId = useMemo(() => {
     const raw = (session as any)?.user_id ?? (session as any)?.userId ?? "";
     return typeof raw === "string" ? raw.trim() : "";
@@ -428,9 +444,46 @@ export function SystemPromptContent({
         setAvailableModels(models);
       }
       const fallbackModelKey = models.length ? getDefaultModelKey(models) : "";
-      setModelKey(resolveModelKeyFromOptions(resolved.model, models, fallbackModelKey));
-      setContent(typeof resolved.system_prompt === "string" ? resolved.system_prompt : "");
-      setSuggestionsPrompt(typeof resolved.suggestions_prompt === "string" ? resolved.suggestions_prompt : "");
+      const primaryModelValue = isWebWidgetType
+        ? resolved.webwidget_model ?? resolved.model
+        : resolved.model;
+      const primarySystemPrompt =
+        isWebWidgetType && typeof resolved.webwidget_system_prompt === "string"
+          ? resolved.webwidget_system_prompt
+          : typeof resolved.system_prompt === "string"
+            ? resolved.system_prompt
+            : "";
+      const primarySuggestionsPrompt =
+        isWebWidgetType && typeof resolved.webwidget_suggestions_prompt === "string"
+          ? resolved.webwidget_suggestions_prompt
+          : typeof resolved.suggestions_prompt === "string"
+            ? resolved.suggestions_prompt
+            : "";
+      const primaryTemperature = isWebWidgetType
+        ? resolved.webwidget_temperature ?? resolved.temperature
+        : resolved.temperature;
+      const primaryThinkingLevel = isWebWidgetType
+        ? resolved.webwidget_thinking_level ?? resolved.thinking_level
+        : resolved.thinking_level;
+      const primaryTopK = isWebWidgetType ? resolved.webwidget_top_k ?? resolved.top_k : resolved.top_k;
+      const primaryTopP = isWebWidgetType ? resolved.webwidget_top_p ?? resolved.top_p : resolved.top_p;
+      const primaryMaxOutputTokens = isWebWidgetType
+        ? resolved.webwidget_max_output_tokens ?? resolved.max_output_tokens
+        : resolved.max_output_tokens;
+      const primaryCandidateCount = isWebWidgetType
+        ? resolved.webwidget_candidate_count ?? resolved.candidate_count
+        : resolved.candidate_count;
+      const primaryStopSequences =
+        isWebWidgetType && Array.isArray(resolved.webwidget_stop_sequences)
+          ? resolved.webwidget_stop_sequences
+          : resolved.stop_sequences;
+      const primaryResponseMimeType = isWebWidgetType
+        ? resolved.webwidget_response_mime_type ?? resolved.response_mime_type
+        : resolved.response_mime_type;
+
+      setModelKey(resolveModelKeyFromOptions(primaryModelValue, models, fallbackModelKey));
+      setContent(primarySystemPrompt);
+      setSuggestionsPrompt(primarySuggestionsPrompt);
       setKbExpertModelKey(
         resolveModelKeyFromOptions(
           resolved.kb_expert_model,
@@ -471,35 +524,35 @@ export function SystemPromptContent({
         typeof resolved.kb_creator_suggestions_prompt === "string" ? resolved.kb_creator_suggestions_prompt : "",
       );
       setTemperature(
-        typeof resolved.temperature === "number"
-          ? String(resolved.temperature)
-          : resolved.temperature
-            ? String(resolved.temperature)
+        typeof primaryTemperature === "number"
+          ? String(primaryTemperature)
+          : primaryTemperature
+            ? String(primaryTemperature)
             : "",
       );
-      setThinkingLevel(typeof resolved.thinking_level === "string" ? resolved.thinking_level : "");
+      setThinkingLevel(typeof primaryThinkingLevel === "string" ? primaryThinkingLevel : "");
       setTopK(
-        typeof resolved.top_k === "number" ? String(resolved.top_k) : resolved.top_k ? String(resolved.top_k) : "",
+        typeof primaryTopK === "number" ? String(primaryTopK) : primaryTopK ? String(primaryTopK) : "",
       );
       setTopP(
-        typeof resolved.top_p === "number" ? String(resolved.top_p) : resolved.top_p ? String(resolved.top_p) : "",
+        typeof primaryTopP === "number" ? String(primaryTopP) : primaryTopP ? String(primaryTopP) : "",
       );
       setMaxOutputTokens(
-        typeof resolved.max_output_tokens === "number"
-          ? String(resolved.max_output_tokens)
-          : resolved.max_output_tokens
-            ? String(resolved.max_output_tokens)
+        typeof primaryMaxOutputTokens === "number"
+          ? String(primaryMaxOutputTokens)
+          : primaryMaxOutputTokens
+            ? String(primaryMaxOutputTokens)
             : "",
       );
       setCandidateCount(
-        typeof resolved.candidate_count === "number"
-          ? String(resolved.candidate_count)
-          : resolved.candidate_count
-            ? String(resolved.candidate_count)
+        typeof primaryCandidateCount === "number"
+          ? String(primaryCandidateCount)
+          : primaryCandidateCount
+            ? String(primaryCandidateCount)
             : "",
       );
-      setStopSequences(Array.isArray(resolved.stop_sequences) ? resolved.stop_sequences.join("\n") : "");
-      setResponseMimeType(resolved.response_mime_type ? String(resolved.response_mime_type) : "");
+      setStopSequences(Array.isArray(primaryStopSequences) ? primaryStopSequences.join("\n") : "");
+      setResponseMimeType(primaryResponseMimeType ? String(primaryResponseMimeType) : "");
       setKbExpertTemperature(
         typeof resolved.kb_expert_temperature === "number"
           ? String(resolved.kb_expert_temperature)
@@ -634,7 +687,7 @@ export function SystemPromptContent({
       );
       clearDirty();
     },
-    [clearDirty],
+    [clearDirty, isWebWidgetType],
   );
 
   useEffect(() => {
@@ -780,9 +833,6 @@ export function SystemPromptContent({
 
     const cfg: AgentConfig = {
       ...baseConfig,
-      system_prompt: content ?? "",
-      suggestions_prompt: suggestionsPrompt ?? "",
-      response_mime_type: responseMimeType.trim() || undefined,
       kb_expert_system_prompt: kbExpertSystemPrompt ?? "",
       kb_expert_suggestions_prompt: kbExpertSuggestionsPrompt ?? "",
       kb_expert_response_mime_type: kbExpertResponseMimeType.trim() || undefined,
@@ -794,8 +844,27 @@ export function SystemPromptContent({
       kb_creator_response_mime_type: kbCreatorResponseMimeType.trim() || undefined,
     };
 
+    const defaultSystemPrompt = content ?? "";
+    const defaultSuggestionsPrompt = suggestionsPrompt ?? "";
+    const defaultResponseMimeType = responseMimeType.trim() || undefined;
+    if (isWebWidgetType) {
+      cfg.webwidget_system_prompt = defaultSystemPrompt;
+      cfg.webwidget_suggestions_prompt = defaultSuggestionsPrompt;
+      cfg.webwidget_response_mime_type = defaultResponseMimeType;
+    } else {
+      cfg.system_prompt = defaultSystemPrompt;
+      cfg.suggestions_prompt = defaultSuggestionsPrompt;
+      cfg.response_mime_type = defaultResponseMimeType;
+    }
+
     const modelVal = modelKey.trim();
-    if (modelVal) cfg.model = modelVal;
+    if (modelVal) {
+      if (isWebWidgetType) {
+        cfg.webwidget_model = modelVal;
+      } else {
+        cfg.model = modelVal;
+      }
+    }
     const kbExpertModelVal = kbExpertModelKey.trim();
     if (kbExpertModelVal) cfg.kb_expert_model = kbExpertModelVal;
     const kbAnalyzerModelVal = kbAnalyzerModelKey.trim();
@@ -815,7 +884,17 @@ export function SystemPromptContent({
       return value.trim();
     };
 
-    const resolvedDefaultModel = modelVal || (typeof baseConfig.model === "string" ? baseConfig.model : "");
+    const resolvedDefaultModel =
+      modelVal ||
+      (isWebWidgetType
+        ? typeof baseConfig.webwidget_model === "string" && baseConfig.webwidget_model.trim()
+          ? baseConfig.webwidget_model
+          : typeof baseConfig.model === "string"
+            ? baseConfig.model
+            : ""
+        : typeof baseConfig.model === "string"
+          ? baseConfig.model
+          : "");
     const resolvedKbExpertModel =
       kbExpertModelVal || (typeof baseConfig.kb_expert_model === "string" ? baseConfig.kb_expert_model : "");
     const resolvedKbAnalyzerModel =
@@ -823,23 +902,61 @@ export function SystemPromptContent({
     const resolvedKbCreatorModel =
       kbCreatorModelVal || (typeof baseConfig.kb_creator_model === "string" ? baseConfig.kb_creator_model : "");
 
-    cfg.thinking_level = normalizeThinkingLevel(thinkingLevel, resolvedDefaultModel);
+    if (isWebWidgetType) {
+      cfg.webwidget_thinking_level = normalizeThinkingLevel(thinkingLevel, resolvedDefaultModel);
+    } else {
+      cfg.thinking_level = normalizeThinkingLevel(thinkingLevel, resolvedDefaultModel);
+    }
     cfg.kb_expert_thinking_level = normalizeThinkingLevel(kbExpertThinkingLevel, resolvedKbExpertModel);
     cfg.kb_analyzer_thinking_level = normalizeThinkingLevel(kbAnalyzerThinkingLevel, resolvedKbAnalyzerModel);
     cfg.kb_creator_thinking_level = normalizeThinkingLevel(kbCreatorThinkingLevel, resolvedKbCreatorModel);
     delete (cfg as any).kb_creator_thinking_leve;
 
     const temp = parseNumber(temperature);
-    if (typeof temp !== "undefined") cfg.temperature = temp;
+    if (typeof temp !== "undefined") {
+      if (isWebWidgetType) {
+        cfg.webwidget_temperature = temp;
+      } else {
+        cfg.temperature = temp;
+      }
+    }
     const k = parseNumber(topK);
-    if (typeof k !== "undefined") cfg.top_k = k;
+    if (typeof k !== "undefined") {
+      if (isWebWidgetType) {
+        cfg.webwidget_top_k = k;
+      } else {
+        cfg.top_k = k;
+      }
+    }
     const p = parseNumber(topP);
-    if (typeof p !== "undefined") cfg.top_p = p;
+    if (typeof p !== "undefined") {
+      if (isWebWidgetType) {
+        cfg.webwidget_top_p = p;
+      } else {
+        cfg.top_p = p;
+      }
+    }
     const max = parseNumber(maxOutputTokens);
-    if (typeof max !== "undefined") cfg.max_output_tokens = max;
+    if (typeof max !== "undefined") {
+      if (isWebWidgetType) {
+        cfg.webwidget_max_output_tokens = max;
+      } else {
+        cfg.max_output_tokens = max;
+      }
+    }
     const cc = parseNumber(candidateCount);
-    if (typeof cc !== "undefined") cfg.candidate_count = cc;
-    cfg.stop_sequences = stopSeqs;
+    if (typeof cc !== "undefined") {
+      if (isWebWidgetType) {
+        cfg.webwidget_candidate_count = cc;
+      } else {
+        cfg.candidate_count = cc;
+      }
+    }
+    if (isWebWidgetType) {
+      cfg.webwidget_stop_sequences = stopSeqs;
+    } else {
+      cfg.stop_sequences = stopSeqs;
+    }
 
     const kbTemp = parseNumber(kbExpertTemperature);
     if (typeof kbTemp !== "undefined") cfg.kb_expert_temperature = kbTemp;
@@ -940,7 +1057,9 @@ export function SystemPromptContent({
           console.warn("[SystemPromptContent] Unable to record wallet usage for training", err);
         });
 
-        setTrainNotice(`Training request sent for ${TRAINING_LABELS[profile]}.`);
+        const profileLabel =
+          profile === "default" ? defaultAssistantLabel : TRAINING_LABELS[profile];
+        setTrainNotice(`Training request sent for ${profileLabel}.`);
       } catch (err) {
         console.error("[SystemPromptContent] Training request failed", err);
         setTrainError(err instanceof Error && err.message ? err.message : "Unable to trigger training right now.");
@@ -954,6 +1073,7 @@ export function SystemPromptContent({
       chatKeyName,
       chatKeyValue,
       chatRequestSchema,
+      defaultAssistantLabel,
       trainingProfile,
       trainingUserId,
     ],
@@ -1127,7 +1247,7 @@ export function SystemPromptContent({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="inline-flex w-full overflow-hidden rounded-lg border border-stroke bg-white shadow-sm dark:border-dark-3 dark:bg-dark-2 sm:w-auto">
             {[
-              { id: "default" as const, label: "Default Assistant" },
+              { id: "default" as const, label: defaultAssistantLabel },
               { id: "kb_expert" as const, label: "KB Expert" },
               { id: "kb_analyzer" as const, label: "KB Analyzer" },
               { id: "kb_creator" as const, label: "KB Creator" },
@@ -1394,7 +1514,9 @@ export function SystemPromptContent({
               </div>
               <div className="mt-2 flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold text-dark dark:text-white">
-                  {TRAINING_LABELS[activeProfile]}
+                  {activeProfile === "default"
+                    ? defaultAssistantLabel
+                    : TRAINING_LABELS[activeProfile]}
                 </span>
                 <button
                   type="button"
