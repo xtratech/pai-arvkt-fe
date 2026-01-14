@@ -114,6 +114,15 @@ type SessionViewProps = {
   sessionId: string;
 };
 
+type SessionTab = "basics" | "integrations" | "web_widget" | "web_widget_embed";
+
+const SESSION_TABS: Array<{ id: SessionTab; label: string }> = [
+  { id: "basics", label: "Basics" },
+  { id: "integrations", label: "Integrations" },
+  { id: "web_widget", label: "Web Widget" },
+  { id: "web_widget_embed", label: "Web Widget Embed" },
+];
+
 export function SessionView({ sessionId }: SessionViewProps) {
   const { attributes, user, tokens } = useUser();
   const userId = useMemo(
@@ -132,6 +141,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [confirmDeleteSession, setConfirmDeleteSession] = useState(false);
+  const [activeTab, setActiveTab] = useState<SessionTab>("basics");
   const router = useRouter();
   const rawConfig = (session?.config as SessionConfig | undefined) ?? {};
   const sessionConfig: SessionConfig = {
@@ -419,132 +429,186 @@ export function SessionView({ sessionId }: SessionViewProps) {
         </div>
       </div>
 
-      <div className="col-span-12 lg:col-span-6 rounded-[10px] bg-white p-6 shadow-1 dark:bg-gray-dark dark:shadow-card">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-base font-semibold text-dark dark:text-white">Basics</h3>
-          <p className="text-sm text-dark-5 dark:text-dark-6">
-            Key facts and ownership details for this agent.
-          </p>
+      <div className="col-span-12">
+        <div
+          className="inline-flex w-full overflow-hidden rounded-lg border border-stroke bg-white shadow-sm dark:border-dark-3 dark:bg-dark-2"
+          role="tablist"
+          aria-label="Agent detail tabs"
+        >
+          {SESSION_TABS.map((tab) => {
+            const selected = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                id={`session-tab-${tab.id}`}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                aria-controls={`session-panel-${tab.id}`}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 px-3 py-2 text-xs font-semibold uppercase tracking-wide transition sm:flex-none ${
+                  selected
+                    ? "bg-primary text-white"
+                    : "text-dark hover:bg-gray-2 dark:text-white dark:hover:bg-dark-3"
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
-        <dl className="mt-4 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
-          <dt className="text-dark-5 dark:text-dark-6">Agent ID</dt>
-          <dd className="font-mono text-dark dark:text-white">{session.id}</dd>
-          <dt className="text-dark-5 dark:text-dark-6">Created</dt>
-          <dd className="text-dark dark:text-white">
-            {formatDateTime(session.created_at)}
-          </dd>
-          <dt className="text-dark-5 dark:text-dark-6">Updated</dt>
-          <dd className="text-dark dark:text-white">
-            {formatDateTime(session.updated_at)}
-          </dd>
-          <dt className="text-dark-5 dark:text-dark-6">User</dt>
-          <dd className="text-dark dark:text-white">
-            {session.user_id || "-"}
-          </dd>
-          <dt className="text-dark-5 dark:text-dark-6">Type</dt>
-          <dd className="text-dark dark:text-white">
-            {formatConfigValue(sessionConfig.type)}
-          </dd>
-          <dt className="text-dark-5 dark:text-dark-6">Mode</dt>
-          <dd className="text-dark dark:text-white">
-            {formatConfigValue(sessionConfig.mode)}
-          </dd>
-          <dt className="text-dark-5 dark:text-dark-6">Max Iterations</dt>
-          <dd className="text-dark dark:text-white">
-            {formatConfigValue(sessionConfig.max_iterations)}
-          </dd>
-        </dl>
       </div>
 
-      <div className="col-span-12 lg:col-span-6 rounded-[10px] bg-white p-6 shadow-1 dark:bg-gray-dark dark:shadow-card">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-base font-semibold text-dark dark:text-white">Integrations</h3>
-          <p className="text-sm text-dark-5 dark:text-dark-6">
-            Connection details for chat delivery and knowledge sources.
-          </p>
-        </div>
-        {!hasIntegrations ? (
-          <p className="mt-4 text-sm text-dark-5 dark:text-dark-6">
-            No integrations configured yet.
-          </p>
-        ) : (
-          <div className="mt-4 space-y-4">
-            {hasChatApi ? (
-              <div className="rounded-md border border-gray-2 p-3 dark:border-dark-3">
-                <h4 className="text-sm font-semibold text-dark dark:text-white">Chat API</h4>
-                <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
-                  <dt className="text-dark-5 dark:text-dark-6">Endpoint</dt>
-                  <dd className="break-all text-dark dark:text-white">
-                    {formatConfigValue(sessionConfig.chat_api_endpoint)}
-                  </dd>
-                  <dt className="text-dark-5 dark:text-dark-6">Key Name</dt>
-                  <dd className="text-dark dark:text-white">
-                    {formatConfigValue(sessionConfig.chat_api_key_name, "x-api-key")}
-                  </dd>
-                  <dt className="text-dark-5 dark:text-dark-6">Key</dt>
-                  <dd className="break-all text-dark dark:text-white">
-                    {maskSecretValue(sessionConfig.chat_api_key)}
-                  </dd>
-                  <dt className="text-dark-5 dark:text-dark-6">Train Command</dt>
-                  <dd className="break-all text-dark dark:text-white">
-                    {formatConfigValue(sessionConfig.train_chatbot_command)}
-                  </dd>
-                </dl>
-              </div>
-            ) : null}
-
-            {hasAgentConfig ? (
-              <div className="rounded-md border border-gray-2 p-3 dark:border-dark-3">
-                <h4 className="text-sm font-semibold text-dark dark:text-white">Agent Config</h4>
-                <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
-                  <dt className="text-dark-5 dark:text-dark-6">Endpoint</dt>
-                  <dd className="break-all text-dark dark:text-white">
-                    {formatConfigValue(sessionConfig.agent_config_endpoint)}
-                  </dd>
-                  <dt className="text-dark-5 dark:text-dark-6">Key Name</dt>
-                  <dd className="text-dark dark:text-white">
-                    {formatConfigValue(sessionConfig.agent_config_key_name, "x-api-key")}
-                  </dd>
-                  <dt className="text-dark-5 dark:text-dark-6">Key</dt>
-                  <dd className="break-all text-dark dark:text-white">
-                    {maskSecretValue(sessionConfig.agent_config_key)}
-                  </dd>
-                </dl>
-              </div>
-            ) : null}
-
-            {hasAgentKb ? (
-              <div className="rounded-md border border-gray-2 p-3 dark:border-dark-3">
-                <h4 className="text-sm font-semibold text-dark dark:text-white">Agent KB</h4>
-                <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
-                  <dt className="text-dark-5 dark:text-dark-6">Endpoint</dt>
-                  <dd className="break-all text-dark dark:text-white">
-                    {formatConfigValue(sessionConfig.agent_kb_endpoint)}
-                  </dd>
-                  <dt className="text-dark-5 dark:text-dark-6">Key Name</dt>
-                  <dd className="text-dark dark:text-white">
-                    {formatConfigValue(sessionConfig.agent_kb_key_name, "x-api-key")}
-                  </dd>
-                  <dt className="text-dark-5 dark:text-dark-6">Key</dt>
-                  <dd className="break-all text-dark dark:text-white">
-                    {maskSecretValue(sessionConfig.agent_kb_key)}
-                  </dd>
-                </dl>
-              </div>
-            ) : null}
+      {activeTab === "basics" ? (
+        <div
+          className="col-span-12 rounded-[10px] bg-white p-6 shadow-1 dark:bg-gray-dark dark:shadow-card"
+          role="tabpanel"
+          id="session-panel-basics"
+          aria-labelledby="session-tab-basics"
+        >
+          <div className="flex flex-col gap-1">
+            <h3 className="text-base font-semibold text-dark dark:text-white">Basics</h3>
+            <p className="text-sm text-dark-5 dark:text-dark-6">
+              Key facts and ownership details for this agent.
+            </p>
           </div>
-        )}
-      </div>
+          <dl className="mt-4 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+            <dt className="text-dark-5 dark:text-dark-6">Agent ID</dt>
+            <dd className="font-mono text-dark dark:text-white">{session.id}</dd>
+            <dt className="text-dark-5 dark:text-dark-6">Created</dt>
+            <dd className="text-dark dark:text-white">
+              {formatDateTime(session.created_at)}
+            </dd>
+            <dt className="text-dark-5 dark:text-dark-6">Updated</dt>
+            <dd className="text-dark dark:text-white">
+              {formatDateTime(session.updated_at)}
+            </dd>
+            <dt className="text-dark-5 dark:text-dark-6">User</dt>
+            <dd className="text-dark dark:text-white">
+              {session.user_id || "-"}
+            </dd>
+            <dt className="text-dark-5 dark:text-dark-6">Type</dt>
+            <dd className="text-dark dark:text-white">
+              {formatConfigValue(sessionConfig.type)}
+            </dd>
+            <dt className="text-dark-5 dark:text-dark-6">Mode</dt>
+            <dd className="text-dark dark:text-white">
+              {formatConfigValue(sessionConfig.mode)}
+            </dd>
+            <dt className="text-dark-5 dark:text-dark-6">Max Iterations</dt>
+            <dd className="text-dark dark:text-white">
+              {formatConfigValue(sessionConfig.max_iterations)}
+            </dd>
+          </dl>
+        </div>
+      ) : null}
 
-      {isWebWidgetType ? (
-        <div className="col-span-12 rounded-[10px] bg-white p-6 shadow-1 dark:bg-gray-dark dark:shadow-card">
+      {activeTab === "integrations" ? (
+        <div
+          className="col-span-12 rounded-[10px] bg-white p-6 shadow-1 dark:bg-gray-dark dark:shadow-card"
+          role="tabpanel"
+          id="session-panel-integrations"
+          aria-labelledby="session-tab-integrations"
+        >
+          <div className="flex flex-col gap-1">
+            <h3 className="text-base font-semibold text-dark dark:text-white">Integrations</h3>
+            <p className="text-sm text-dark-5 dark:text-dark-6">
+              Connection details for chat delivery and knowledge sources.
+            </p>
+          </div>
+          {!hasIntegrations ? (
+            <p className="mt-4 text-sm text-dark-5 dark:text-dark-6">
+              No integrations configured yet.
+            </p>
+          ) : (
+            <div className="mt-4 space-y-4">
+              {hasChatApi ? (
+                <div className="rounded-md border border-gray-2 p-3 dark:border-dark-3">
+                  <h4 className="text-sm font-semibold text-dark dark:text-white">Chat API</h4>
+                  <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+                    <dt className="text-dark-5 dark:text-dark-6">Endpoint</dt>
+                    <dd className="break-all text-dark dark:text-white">
+                      {formatConfigValue(sessionConfig.chat_api_endpoint)}
+                    </dd>
+                    <dt className="text-dark-5 dark:text-dark-6">Key Name</dt>
+                    <dd className="text-dark dark:text-white">
+                      {formatConfigValue(sessionConfig.chat_api_key_name, "x-api-key")}
+                    </dd>
+                    <dt className="text-dark-5 dark:text-dark-6">Key</dt>
+                    <dd className="break-all text-dark dark:text-white">
+                      {maskSecretValue(sessionConfig.chat_api_key)}
+                    </dd>
+                    <dt className="text-dark-5 dark:text-dark-6">Train Command</dt>
+                    <dd className="break-all text-dark dark:text-white">
+                      {formatConfigValue(sessionConfig.train_chatbot_command)}
+                    </dd>
+                  </dl>
+                </div>
+              ) : null}
+
+              {hasAgentConfig ? (
+                <div className="rounded-md border border-gray-2 p-3 dark:border-dark-3">
+                  <h4 className="text-sm font-semibold text-dark dark:text-white">Agent Config</h4>
+                  <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+                    <dt className="text-dark-5 dark:text-dark-6">Endpoint</dt>
+                    <dd className="break-all text-dark dark:text-white">
+                      {formatConfigValue(sessionConfig.agent_config_endpoint)}
+                    </dd>
+                    <dt className="text-dark-5 dark:text-dark-6">Key Name</dt>
+                    <dd className="text-dark dark:text-white">
+                      {formatConfigValue(sessionConfig.agent_config_key_name, "x-api-key")}
+                    </dd>
+                    <dt className="text-dark-5 dark:text-dark-6">Key</dt>
+                    <dd className="break-all text-dark dark:text-white">
+                      {maskSecretValue(sessionConfig.agent_config_key)}
+                    </dd>
+                  </dl>
+                </div>
+              ) : null}
+
+              {hasAgentKb ? (
+                <div className="rounded-md border border-gray-2 p-3 dark:border-dark-3">
+                  <h4 className="text-sm font-semibold text-dark dark:text-white">Agent KB</h4>
+                  <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+                    <dt className="text-dark-5 dark:text-dark-6">Endpoint</dt>
+                    <dd className="break-all text-dark dark:text-white">
+                      {formatConfigValue(sessionConfig.agent_kb_endpoint)}
+                    </dd>
+                    <dt className="text-dark-5 dark:text-dark-6">Key Name</dt>
+                    <dd className="text-dark dark:text-white">
+                      {formatConfigValue(sessionConfig.agent_kb_key_name, "x-api-key")}
+                    </dd>
+                    <dt className="text-dark-5 dark:text-dark-6">Key</dt>
+                    <dd className="break-all text-dark dark:text-white">
+                      {maskSecretValue(sessionConfig.agent_kb_key)}
+                    </dd>
+                  </dl>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      {activeTab === "web_widget" ? (
+        <div
+          className="col-span-12 rounded-[10px] bg-white p-6 shadow-1 dark:bg-gray-dark dark:shadow-card"
+          role="tabpanel"
+          id="session-panel-web_widget"
+          aria-labelledby="session-tab-web_widget"
+        >
           <div className="flex flex-col gap-1">
             <h3 className="text-base font-semibold text-dark dark:text-white">Web Widget</h3>
             <p className="text-sm text-dark-5 dark:text-dark-6">
               Widget appearance, behavior, and integration settings.
             </p>
           </div>
-          {!hasWebWidgetSettings ? (
+          {!isWebWidgetType ? (
+            <p className="mt-4 text-sm text-dark-5 dark:text-dark-6">
+              Web widget settings apply only to WebWidgetChatbot or WebChatbot agents.
+            </p>
+          ) : !hasWebWidgetSettings ? (
             <p className="mt-4 text-sm text-dark-5 dark:text-dark-6">
               No web widget settings configured yet.
             </p>
@@ -640,15 +704,24 @@ export function SessionView({ sessionId }: SessionViewProps) {
         </div>
       ) : null}
 
-      {isWebWidgetType ? (
-        <div className="col-span-12 rounded-[10px] bg-white p-6 shadow-1 dark:bg-gray-dark dark:shadow-card">
+      {activeTab === "web_widget_embed" ? (
+        <div
+          className="col-span-12 rounded-[10px] bg-white p-6 shadow-1 dark:bg-gray-dark dark:shadow-card"
+          role="tabpanel"
+          id="session-panel-web_widget_embed"
+          aria-labelledby="session-tab-web_widget_embed"
+        >
           <div className="flex flex-col gap-1">
             <h3 className="text-base font-semibold text-dark dark:text-white">Web Widget Embed</h3>
             <p className="text-sm text-dark-5 dark:text-dark-6">
               Copy and paste this script into your site or GTM tag.
             </p>
           </div>
-          {!widgetEmbedCode ? (
+          {!isWebWidgetType ? (
+            <p className="mt-4 text-sm text-dark-5 dark:text-dark-6">
+              Web widget embeds are only available for WebWidgetChatbot or WebChatbot agents.
+            </p>
+          ) : !widgetEmbedCode ? (
             <p className="mt-4 text-sm text-dark-5 dark:text-dark-6">
               Add a Widget Loader URL to generate the embed script.
             </p>

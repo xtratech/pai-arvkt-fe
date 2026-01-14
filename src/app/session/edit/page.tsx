@@ -34,8 +34,8 @@ export default async function EditSessionPage({
       <Breadcrumb pageName="Edit Agent" />
       <Alert
         variant="warning"
-        title="Editing disclaimer"
-        description="Do not edit this agent unless you are accompanied by Pluree AI personnel."
+        title="Advanced Settings Area"
+        description="Please only visit accompanied by Pluree AI personnel and keep it to reading only."
         className="mt-6"
       />
       <EditSessionForm sessionId={id} />
