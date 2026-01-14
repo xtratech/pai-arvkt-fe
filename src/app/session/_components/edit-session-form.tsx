@@ -37,6 +37,9 @@ type FormState = {
   web_widget_position: string;
   web_widget_primary_color: string;
   web_widget_secondary_color: string;
+  web_widget_accent_color: string;
+  web_widget_primary_font: string;
+  web_widget_secondary_font: string;
   web_widget_require_consent: string;
   web_widget_capture_fields: string;
   web_widget_escalation_enabled: string;
@@ -67,6 +70,9 @@ const EMPTY_FORM: FormState = {
   web_widget_position: "",
   web_widget_primary_color: "",
   web_widget_secondary_color: "",
+  web_widget_accent_color: "",
+  web_widget_primary_font: "",
+  web_widget_secondary_font: "",
   web_widget_require_consent: "",
   web_widget_capture_fields: "",
   web_widget_escalation_enabled: "",
@@ -217,6 +223,9 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
           web_widget_position: toDisplayable(cfg.web_widget_position),
           web_widget_primary_color: toDisplayable(cfg.web_widget_primary_color),
           web_widget_secondary_color: toDisplayable(cfg.web_widget_secondary_color),
+          web_widget_accent_color: toDisplayable(cfg.web_widget_accent_color),
+          web_widget_primary_font: toDisplayable(cfg.web_widget_primary_font),
+          web_widget_secondary_font: toDisplayable(cfg.web_widget_secondary_font),
           web_widget_require_consent: toDisplayable(cfg.web_widget_require_consent),
           web_widget_capture_fields: toDisplayable(cfg.web_widget_capture_fields),
           web_widget_escalation_enabled: toDisplayable(cfg.web_widget_escalation_enabled),
@@ -288,6 +297,9 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
           web_widget_position: normalizeString(form.web_widget_position),
           web_widget_primary_color: normalizeString(form.web_widget_primary_color),
           web_widget_secondary_color: normalizeString(form.web_widget_secondary_color),
+          web_widget_accent_color: normalizeString(form.web_widget_accent_color),
+          web_widget_primary_font: normalizeString(form.web_widget_primary_font),
+          web_widget_secondary_font: normalizeString(form.web_widget_secondary_font),
           web_widget_require_consent: parseBooleanValue(form.web_widget_require_consent),
           web_widget_capture_fields: normalizeString(form.web_widget_capture_fields),
           web_widget_escalation_enabled: parseBooleanValue(form.web_widget_escalation_enabled),
@@ -504,6 +516,51 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
                   onChange={handleChange}
                   className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
                   placeholder="#f8fafc"
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_accent_color">
+                  Accent Color
+                </label>
+                <input
+                  id="web_widget_accent_color"
+                  name="web_widget_accent_color"
+                  type="text"
+                  value={form.web_widget_accent_color}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder="#ca0538"
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_primary_font">
+                  Primary Font
+                </label>
+                <input
+                  id="web_widget_primary_font"
+                  name="web_widget_primary_font"
+                  type="text"
+                  value={form.web_widget_primary_font}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder='"Basis Grotesque Pro", sans-serif'
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_secondary_font">
+                  Secondary Font
+                </label>
+                <input
+                  id="web_widget_secondary_font"
+                  name="web_widget_secondary_font"
+                  type="text"
+                  value={form.web_widget_secondary_font}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder='"Basis Grotesque Pro", sans-serif'
                   disabled={saving}
                 />
               </div>

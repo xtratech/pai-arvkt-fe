@@ -37,16 +37,16 @@ export const NAV_DATA: NavSection[] = [
         ],
       },
       {
-        title: "Chat Editor",
-        url: "/chat-editor",
-        icon: Icons.Alphabet,
+        title: "Tools",
+        url: "/tools",
+        icon: Icons.FourCircle,
         items: [
         ],
       },
       {
-        title: "Tools",
-        url: "/tools",
-        icon: Icons.FourCircle,
+        title: "Chat Editor",
+        url: "/chat-editor",
+        icon: Icons.Alphabet,
         items: [
         ],
       }

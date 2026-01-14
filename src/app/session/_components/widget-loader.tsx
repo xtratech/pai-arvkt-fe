@@ -19,6 +19,9 @@ type WidgetLoaderProps = {
   position?: string | null;
   primaryColor?: string | null;
   secondaryColor?: string | null;
+  accentColor?: string | null;
+  primaryFont?: string | null;
+  secondaryFont?: string | null;
   requireConsent?: boolean | string | null;
   captureFields?: string | null;
   escalationEnabled?: boolean | string | null;
@@ -78,6 +81,9 @@ export function WidgetLoader({
   position,
   primaryColor,
   secondaryColor,
+  accentColor,
+  primaryFont,
+  secondaryFont,
   requireConsent,
   captureFields,
   escalationEnabled,
@@ -122,6 +128,10 @@ export function WidgetLoader({
     }
 
     setDataAttribute(script, "data-primary-color", normalizeString(primaryColor));
+    setDataAttribute(script, "data-secondary-color", normalizeString(secondaryColor));
+    setDataAttribute(script, "data-accent-color", normalizeString(accentColor));
+    setDataAttribute(script, "data-primary-font", normalizeString(primaryFont));
+    setDataAttribute(script, "data-secondary-font", normalizeString(secondaryFont));
 
     const normalizedCaptureFields = normalizeCaptureFields(captureFields);
     setDataAttribute(script, "data-capture-fields", normalizedCaptureFields);
@@ -181,6 +191,9 @@ export function WidgetLoader({
     primaryColor,
     requireConsent,
     secondaryColor,
+    accentColor,
+    primaryFont,
+    secondaryFont,
     title,
   ]);
 

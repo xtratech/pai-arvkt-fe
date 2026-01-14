@@ -143,6 +143,9 @@ export function SessionView({ sessionId }: SessionViewProps) {
         sessionConfig.web_widget_position ||
         sessionConfig.web_widget_primary_color ||
         sessionConfig.web_widget_secondary_color ||
+        sessionConfig.web_widget_accent_color ||
+        sessionConfig.web_widget_primary_font ||
+        sessionConfig.web_widget_secondary_font ||
         sessionConfig.web_widget_capture_fields ||
         sessionConfig.web_widget_api_endpoint ||
         sessionConfig.web_widget_api_key ||
@@ -467,6 +470,18 @@ export function SessionView({ sessionId }: SessionViewProps) {
                   <dd className="text-dark dark:text-white">
                     {formatConfigValue(sessionConfig.web_widget_secondary_color)}
                   </dd>
+                  <dt className="text-dark-5 dark:text-dark-6">Accent Color</dt>
+                  <dd className="text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.web_widget_accent_color)}
+                  </dd>
+                  <dt className="text-dark-5 dark:text-dark-6">Primary Font</dt>
+                  <dd className="text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.web_widget_primary_font)}
+                  </dd>
+                  <dt className="text-dark-5 dark:text-dark-6">Secondary Font</dt>
+                  <dd className="text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.web_widget_secondary_font)}
+                  </dd>
                 </dl>
               </div>
 
@@ -525,6 +540,9 @@ export function SessionView({ sessionId }: SessionViewProps) {
           position={sessionConfig.web_widget_position}
           primaryColor={sessionConfig.web_widget_primary_color}
           secondaryColor={sessionConfig.web_widget_secondary_color}
+          accentColor={sessionConfig.web_widget_accent_color}
+          primaryFont={sessionConfig.web_widget_primary_font}
+          secondaryFont={sessionConfig.web_widget_secondary_font}
           requireConsent={sessionConfig.web_widget_require_consent}
           captureFields={sessionConfig.web_widget_capture_fields}
           escalationEnabled={sessionConfig.web_widget_escalation_enabled}
