@@ -51,6 +51,8 @@ export type SessionConfig = {
   web_widget_accent_color?: string;
   web_widget_primary_font?: string;
   web_widget_secondary_font?: string;
+  web_widget_border_color?: string;
+  web_widget_border_radius?: string;
   web_widget_require_consent?: boolean;
   web_widget_capture_fields?: string;
   web_widget_escalation_enabled?: boolean;

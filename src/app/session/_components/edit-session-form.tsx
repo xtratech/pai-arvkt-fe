@@ -40,6 +40,8 @@ type FormState = {
   web_widget_accent_color: string;
   web_widget_primary_font: string;
   web_widget_secondary_font: string;
+  web_widget_border_color: string;
+  web_widget_border_radius: string;
   web_widget_require_consent: string;
   web_widget_capture_fields: string;
   web_widget_escalation_enabled: string;
@@ -73,6 +75,8 @@ const EMPTY_FORM: FormState = {
   web_widget_accent_color: "",
   web_widget_primary_font: "",
   web_widget_secondary_font: "",
+  web_widget_border_color: "",
+  web_widget_border_radius: "",
   web_widget_require_consent: "",
   web_widget_capture_fields: "",
   web_widget_escalation_enabled: "",
@@ -226,6 +230,8 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
           web_widget_accent_color: toDisplayable(cfg.web_widget_accent_color),
           web_widget_primary_font: toDisplayable(cfg.web_widget_primary_font),
           web_widget_secondary_font: toDisplayable(cfg.web_widget_secondary_font),
+          web_widget_border_color: toDisplayable(cfg.web_widget_border_color),
+          web_widget_border_radius: toDisplayable(cfg.web_widget_border_radius),
           web_widget_require_consent: toDisplayable(cfg.web_widget_require_consent),
           web_widget_capture_fields: toDisplayable(cfg.web_widget_capture_fields),
           web_widget_escalation_enabled: toDisplayable(cfg.web_widget_escalation_enabled),
@@ -300,6 +306,8 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
           web_widget_accent_color: normalizeString(form.web_widget_accent_color),
           web_widget_primary_font: normalizeString(form.web_widget_primary_font),
           web_widget_secondary_font: normalizeString(form.web_widget_secondary_font),
+          web_widget_border_color: normalizeString(form.web_widget_border_color),
+          web_widget_border_radius: normalizeString(form.web_widget_border_radius),
           web_widget_require_consent: parseBooleanValue(form.web_widget_require_consent),
           web_widget_capture_fields: normalizeString(form.web_widget_capture_fields),
           web_widget_escalation_enabled: parseBooleanValue(form.web_widget_escalation_enabled),
@@ -561,6 +569,36 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
                   onChange={handleChange}
                   className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
                   placeholder='"Basis Grotesque Pro", sans-serif'
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_border_color">
+                  Border Color
+                </label>
+                <input
+                  id="web_widget_border_color"
+                  name="web_widget_border_color"
+                  type="text"
+                  value={form.web_widget_border_color}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder="#27303e"
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-dark dark:text-white" htmlFor="web_widget_border_radius">
+                  Border Radius
+                </label>
+                <input
+                  id="web_widget_border_radius"
+                  name="web_widget_border_radius"
+                  type="text"
+                  value={form.web_widget_border_radius}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  placeholder="8"
                   disabled={saving}
                 />
               </div>

@@ -163,10 +163,12 @@ export function SessionView({ sessionId }: SessionViewProps) {
         sessionConfig.web_widget_position ||
         sessionConfig.web_widget_primary_color ||
         sessionConfig.web_widget_secondary_color ||
-        sessionConfig.web_widget_accent_color ||
-        sessionConfig.web_widget_primary_font ||
-        sessionConfig.web_widget_secondary_font ||
-        sessionConfig.web_widget_capture_fields ||
+      sessionConfig.web_widget_accent_color ||
+      sessionConfig.web_widget_primary_font ||
+      sessionConfig.web_widget_secondary_font ||
+      sessionConfig.web_widget_border_color ||
+      sessionConfig.web_widget_border_radius ||
+      sessionConfig.web_widget_capture_fields ||
         sessionConfig.web_widget_api_endpoint ||
         sessionConfig.web_widget_api_key ||
         sessionConfig.web_widget_loader_url,
@@ -208,6 +210,12 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const secondaryFont = normalizeWidgetValue(sessionConfig.web_widget_secondary_font);
     if (secondaryFont) attributes.push(["data-secondary-font", secondaryFont]);
 
+    const borderColor = normalizeWidgetValue(sessionConfig.web_widget_border_color);
+    if (borderColor) attributes.push(["data-border-color", borderColor]);
+
+    const borderRadius = normalizeWidgetValue(sessionConfig.web_widget_border_radius);
+    if (borderRadius) attributes.push(["data-border-radius", borderRadius]);
+
     const captureFields = normalizeWidgetCsv(sessionConfig.web_widget_capture_fields);
     if (captureFields) attributes.push(["data-capture-fields", captureFields]);
 
@@ -238,6 +246,8 @@ export function SessionView({ sessionId }: SessionViewProps) {
     return lines.join("\n");
   }, [
     sessionConfig.web_widget_accent_color,
+    sessionConfig.web_widget_border_color,
+    sessionConfig.web_widget_border_radius,
     sessionConfig.web_widget_capture_fields,
     sessionConfig.web_widget_debug,
     sessionConfig.web_widget_escalation_enabled,
@@ -571,6 +581,14 @@ export function SessionView({ sessionId }: SessionViewProps) {
                   <dd className="text-dark dark:text-white">
                     {formatConfigValue(sessionConfig.web_widget_secondary_font)}
                   </dd>
+                  <dt className="text-dark-5 dark:text-dark-6">Border Color</dt>
+                  <dd className="text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.web_widget_border_color)}
+                  </dd>
+                  <dt className="text-dark-5 dark:text-dark-6">Border Radius</dt>
+                  <dd className="text-dark dark:text-white">
+                    {formatConfigValue(sessionConfig.web_widget_border_radius)}
+                  </dd>
                 </dl>
               </div>
 
@@ -655,6 +673,8 @@ export function SessionView({ sessionId }: SessionViewProps) {
           accentColor={sessionConfig.web_widget_accent_color}
           primaryFont={sessionConfig.web_widget_primary_font}
           secondaryFont={sessionConfig.web_widget_secondary_font}
+          borderColor={sessionConfig.web_widget_border_color}
+          borderRadius={sessionConfig.web_widget_border_radius}
           requireConsent={sessionConfig.web_widget_require_consent}
           captureFields={sessionConfig.web_widget_capture_fields}
           escalationEnabled={sessionConfig.web_widget_escalation_enabled}
