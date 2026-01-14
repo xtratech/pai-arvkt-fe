@@ -88,6 +88,26 @@ const formatConfigValue = (value: unknown, fallback = "-") => {
   }
 };
 
+const normalizeWidgetValue = (value: unknown) =>
+  typeof value === "string" ? value.trim() : "";
+
+const normalizeWidgetCsv = (value: unknown) => {
+  const normalized = normalizeWidgetValue(value);
+  if (!normalized) return "";
+  return normalized
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .join(",");
+};
+
+const escapeHtmlAttribute = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/'/g, "&#39;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
 const WEB_WIDGET_TYPES = new Set(["WebWidgetChatbot", "WebChatbot"]);
 
 type SessionViewProps = {
@@ -161,6 +181,75 @@ export function SessionView({ sessionId }: SessionViewProps) {
       ? sessionConfig.web_widget_loader_url.trim()
       : "";
   const shouldLoadWidget = isWebWidgetType && hasWebWidgetSettings && Boolean(widgetLoaderUrl);
+  const widgetEmbedCode = useMemo(() => {
+    if (!widgetLoaderUrl) return "";
+
+    const attributes: Array<[string, string]> = [];
+    const title = normalizeWidgetValue(sessionConfig.web_widget_title);
+    if (title) attributes.push(["data-title", title]);
+
+    const position = normalizeWidgetValue(sessionConfig.web_widget_position);
+    if (position === "left" || position === "right") {
+      attributes.push(["data-position", position]);
+    }
+
+    const primaryColor = normalizeWidgetValue(sessionConfig.web_widget_primary_color);
+    if (primaryColor) attributes.push(["data-primary-color", primaryColor]);
+
+    const secondaryColor = normalizeWidgetValue(sessionConfig.web_widget_secondary_color);
+    if (secondaryColor) attributes.push(["data-secondary-color", secondaryColor]);
+
+    const accentColor = normalizeWidgetValue(sessionConfig.web_widget_accent_color);
+    if (accentColor) attributes.push(["data-accent-color", accentColor]);
+
+    const primaryFont = normalizeWidgetValue(sessionConfig.web_widget_primary_font);
+    if (primaryFont) attributes.push(["data-primary-font", primaryFont]);
+
+    const secondaryFont = normalizeWidgetValue(sessionConfig.web_widget_secondary_font);
+    if (secondaryFont) attributes.push(["data-secondary-font", secondaryFont]);
+
+    const captureFields = normalizeWidgetCsv(sessionConfig.web_widget_capture_fields);
+    if (captureFields) attributes.push(["data-capture-fields", captureFields]);
+
+    if (typeof sessionConfig.web_widget_require_consent === "boolean") {
+      attributes.push([
+        "data-require-consent",
+        sessionConfig.web_widget_require_consent ? "true" : "false",
+      ]);
+    }
+
+    if (typeof sessionConfig.web_widget_escalation_enabled === "boolean") {
+      attributes.push([
+        "data-escalation-enabled",
+        sessionConfig.web_widget_escalation_enabled ? "true" : "false",
+      ]);
+    }
+
+    if (typeof sessionConfig.web_widget_debug === "boolean") {
+      attributes.push(["data-debug", sessionConfig.web_widget_debug ? "true" : "false"]);
+    }
+
+    const lines = [`<script src='${escapeHtmlAttribute(widgetLoaderUrl)}'`];
+    lines.push("  async");
+    for (const [name, value] of attributes) {
+      lines.push(`  ${name}='${escapeHtmlAttribute(value)}'`);
+    }
+    lines.push("></script>");
+    return lines.join("\n");
+  }, [
+    sessionConfig.web_widget_accent_color,
+    sessionConfig.web_widget_capture_fields,
+    sessionConfig.web_widget_debug,
+    sessionConfig.web_widget_escalation_enabled,
+    sessionConfig.web_widget_position,
+    sessionConfig.web_widget_primary_color,
+    sessionConfig.web_widget_primary_font,
+    sessionConfig.web_widget_require_consent,
+    sessionConfig.web_widget_secondary_color,
+    sessionConfig.web_widget_secondary_font,
+    sessionConfig.web_widget_title,
+    widgetLoaderUrl,
+  ]);
 
   useEffect(() => {
     let active = true;
@@ -528,6 +617,29 @@ export function SessionView({ sessionId }: SessionViewProps) {
                   </dd>
                 </dl>
               </div>
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      {isWebWidgetType ? (
+        <div className="col-span-12 rounded-[10px] bg-white p-6 shadow-1 dark:bg-gray-dark dark:shadow-card">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-base font-semibold text-dark dark:text-white">Web Widget Embed</h3>
+            <p className="text-sm text-dark-5 dark:text-dark-6">
+              Copy and paste this script into your site or GTM tag.
+            </p>
+          </div>
+          {!widgetEmbedCode ? (
+            <p className="mt-4 text-sm text-dark-5 dark:text-dark-6">
+              Add a Widget Loader URL to generate the embed script.
+            </p>
+          ) : (
+            <div className="mt-4 space-y-2">
+              <pre className="custom-scrollbar max-h-64 overflow-auto rounded-xl border border-stroke bg-white p-4 font-mono text-xs text-dark dark:border-dark-3 dark:bg-dark-2 dark:text-dark-6"><code>{widgetEmbedCode}</code></pre>
+              <p className="text-xs text-dark-5 dark:text-dark-6">
+                Unset fields are omitted so the widget uses its defaults.
+              </p>
             </div>
           )}
         </div>
