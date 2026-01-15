@@ -153,6 +153,10 @@ function toFieldId(attribute: string) {
   return `widget-${attribute.replace(/[^a-z0-9]/gi, "-")}`;
 }
 
+function toTabId(label: string) {
+  return `tab-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`;
+}
+
 function escapeHtmlAttribute(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -514,50 +518,169 @@ function OptionField({
     />
   );
 }
-type ConfigurationPanelProps = {
+type ConfigurationTabsProps = {
   categories: WidgetCategory[];
   values: Record<string, string>;
   onChange: (attribute: string, value: string) => void;
   disabled?: boolean;
+  connection: {
+    loaderUrl: string;
+    apiKeyName: string;
+    onLoaderUrlChange: (value: string) => void;
+    onApiKeyNameChange: (value: string) => void;
+  };
 };
 
-function ConfigurationPanel({
+function ConfigurationTabs({
   categories,
   values,
   onChange,
   disabled,
-}: ConfigurationPanelProps) {
+  connection,
+}: ConfigurationTabsProps) {
+  const connectionLabel = "Widget Connection";
+  const connectionTabId = toTabId(connectionLabel);
+  const tabItems = useMemo(
+    () => [
+      ...categories.map((category) => ({
+        id: toTabId(category.name),
+        label: category.name,
+        description: category.description,
+        count: category.options.length,
+      })),
+      {
+        id: connectionTabId,
+        label: connectionLabel,
+        description: "Loader URL and API key header configuration.",
+        count: 2,
+      },
+    ],
+    [categories, connectionTabId],
+  );
+
+  const [activeTab, setActiveTab] = useState(
+    tabItems[0]?.id ?? connectionTabId,
+  );
+
+  useEffect(() => {
+    if (!tabItems.some((tab) => tab.id === activeTab)) {
+      setActiveTab(tabItems[0]?.id ?? connectionTabId);
+    }
+  }, [activeTab, connectionTabId, tabItems]);
+
+  const activeCategory = categories.find(
+    (category) => toTabId(category.name) === activeTab,
+  );
+
   return (
-    <div className="space-y-4">
-      {categories.map((category, index) => (
-        <details
-          key={category.name}
-          className="group rounded-2xl border border-stroke/80 bg-white/70 shadow-sm backdrop-blur dark:border-dark-3 dark:bg-dark-2/70 [&>summary::-webkit-details-marker]:hidden"
-          open={index === 0}
-        >
-          <summary className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3">
+    <div className="rounded-2xl border border-stroke/80 bg-white/70 shadow-sm backdrop-blur dark:border-dark-3 dark:bg-dark-2/70">
+      <div className="border-b border-stroke/70 px-3 py-3 dark:border-dark-3">
+        <div className="custom-scrollbar flex flex-wrap gap-2 overflow-x-auto" role="tablist">
+          {tabItems.map((tab) => {
+            const isActive = tab.id === activeTab;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                id={`${tab.id}-tab`}
+                role="tab"
+                aria-selected={isActive}
+                aria-controls={`${tab.id}-panel`}
+                tabIndex={isActive ? 0 : -1}
+                onClick={() => setActiveTab(tab.id)}
+                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition ${
+                  isActive
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-stroke/70 text-dark-5 hover:border-primary/50 hover:text-primary dark:border-dark-3 dark:text-dark-6"
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span className="rounded-full bg-gray-1 px-1.5 py-0.5 text-[10px] text-dark-5 dark:bg-dark-3 dark:text-dark-6">
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="p-4">
+        {activeTab === connectionTabId ? (
+          <div
+            role="tabpanel"
+            id={`${connectionTabId}-panel`}
+            aria-labelledby={`${connectionTabId}-tab`}
+            className="space-y-4"
+          >
             <div>
               <h3 className="text-sm font-semibold text-dark dark:text-white">
-                {category.name}
+                {connectionLabel}
               </h3>
-              {category.description ? (
+              <p className="text-xs text-dark-5 dark:text-dark-6">
+                Loader URL is required to preview and embed the widget.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <label
+                  className="mb-2 block text-xs font-semibold text-dark dark:text-white"
+                  htmlFor="web_widget_loader_url"
+                >
+                  Widget Loader URL
+                </label>
+                <input
+                  id="web_widget_loader_url"
+                  name="web_widget_loader_url"
+                  type="text"
+                  value={connection.loaderUrl}
+                  onChange={(event) => connection.onLoaderUrlChange(event.target.value)}
+                  className={CONTROL_INPUT_CLASS}
+                  placeholder="https://example.com/widget-loader.js"
+                  disabled={disabled}
+                />
+              </div>
+              <div>
+                <label
+                  className="mb-2 block text-xs font-semibold text-dark dark:text-white"
+                  htmlFor="web_widget_api_key_name"
+                >
+                  API Key Name
+                </label>
+                <input
+                  id="web_widget_api_key_name"
+                  name="web_widget_api_key_name"
+                  type="text"
+                  value={connection.apiKeyName}
+                  onChange={(event) => connection.onApiKeyNameChange(event.target.value)}
+                  className={CONTROL_INPUT_CLASS}
+                  placeholder={DEFAULT_KEY_NAME}
+                  disabled={disabled}
+                />
+                <p className="mt-1 text-[11px] text-dark-5 dark:text-dark-6">
+                  Header name used by your widget API. Defaults to {DEFAULT_KEY_NAME}.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : activeCategory ? (
+          <div
+            role="tabpanel"
+            id={`${activeTab}-panel`}
+            aria-labelledby={`${activeTab}-tab`}
+            className="space-y-4"
+          >
+            <div>
+              <h3 className="text-sm font-semibold text-dark dark:text-white">
+                {activeCategory.name}
+              </h3>
+              {activeCategory.description ? (
                 <p className="text-xs text-dark-5 dark:text-dark-6">
-                  {category.description}
+                  {activeCategory.description}
                 </p>
               ) : null}
             </div>
-            <div className="flex items-center gap-3 text-[11px] text-dark-5 dark:text-dark-6">
-              <span className="rounded-full border border-stroke/70 px-2 py-0.5 dark:border-dark-3">
-                {category.options.length} options
-              </span>
-              <span className="transition group-open:rotate-180">
-                <ChevronIcon />
-              </span>
-            </div>
-          </summary>
-          <div className="border-t border-stroke/70 px-4 py-4 dark:border-dark-3">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {category.options.map((option) => {
+              {activeCategory.options.map((option) => {
                 const fieldId = toFieldId(option.attribute);
                 const labelId = `${fieldId}-label`;
                 const isBoolean = option.type === "boolean";
@@ -608,8 +731,8 @@ function ConfigurationPanel({
               })}
             </div>
           </div>
-        </details>
-      ))}
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -862,6 +985,17 @@ export function WebWidgetEditor({ sessionId }: WebWidgetEditorProps) {
     }));
     setSuccess(null);
   }, []);
+
+  const handleLoaderUrlChange = useCallback((value: string) => {
+    setLoaderUrl(value);
+    setSuccess(null);
+  }, []);
+
+  const handleApiKeyNameChange = useCallback((value: string) => {
+    setApiKeyName(value);
+    setSuccess(null);
+  }, []);
+
   const normalizedAttributes = useMemo(() => {
     const next: Record<string, string> = {};
     for (const attribute of ATTRIBUTE_ORDER) {
@@ -1069,69 +1203,17 @@ export function WebWidgetEditor({ sessionId }: WebWidgetEditorProps) {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="space-y-6">
-          <div className="rounded-2xl border border-stroke/80 bg-white/80 p-4 shadow-sm dark:border-dark-3 dark:bg-dark-2/80">
-            <div className="flex flex-col gap-1">
-              <h3 className="text-base font-semibold text-dark dark:text-white">
-                Widget Connection
-              </h3>
-              <p className="text-xs text-dark-5 dark:text-dark-6">
-                Loader URL is required to preview and embed the widget.
-              </p>
-            </div>
-            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="md:col-span-2">
-                <label
-                  className="mb-2 block text-xs font-semibold text-dark dark:text-white"
-                  htmlFor="web_widget_loader_url"
-                >
-                  Widget Loader URL
-                </label>
-                <input
-                  id="web_widget_loader_url"
-                  name="web_widget_loader_url"
-                  type="text"
-                  value={loaderUrl}
-                  onChange={(event) => {
-                    setLoaderUrl(event.target.value);
-                    setSuccess(null);
-                  }}
-                  className={CONTROL_INPUT_CLASS}
-                  placeholder="https://example.com/widget-loader.js"
-                  disabled={saving}
-                />
-              </div>
-              <div>
-                <label
-                  className="mb-2 block text-xs font-semibold text-dark dark:text-white"
-                  htmlFor="web_widget_api_key_name"
-                >
-                  API Key Name
-                </label>
-                <input
-                  id="web_widget_api_key_name"
-                  name="web_widget_api_key_name"
-                  type="text"
-                  value={apiKeyName}
-                  onChange={(event) => {
-                    setApiKeyName(event.target.value);
-                    setSuccess(null);
-                  }}
-                  className={CONTROL_INPUT_CLASS}
-                  placeholder={DEFAULT_KEY_NAME}
-                  disabled={saving}
-                />
-                <p className="mt-1 text-[11px] text-dark-5 dark:text-dark-6">
-                  Header name used by your widget API. Defaults to {DEFAULT_KEY_NAME}.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <ConfigurationPanel
+          <ConfigurationTabs
             categories={WIDGET_CATEGORIES}
             values={attributeValues}
             onChange={handleAttributeChange}
             disabled={saving}
+            connection={{
+              loaderUrl,
+              apiKeyName,
+              onLoaderUrlChange: handleLoaderUrlChange,
+              onApiKeyNameChange: handleApiKeyNameChange,
+            }}
           />
         </div>
 
