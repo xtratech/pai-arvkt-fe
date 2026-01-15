@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUser } from "@/contexts/user-context";
 import {
   fetchSessionDetail,
@@ -31,6 +32,7 @@ type WidgetCategory = {
 
 const DEFAULT_KEY_NAME = "x-api-key";
 const WEB_WIDGET_TYPES = new Set(["WebWidgetChatbot", "WebChatbot"]);
+const HEX_COLOR_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
 const widgetSchema = (widgetConfigDefinition as {
   configurationSchema?: { categories?: WidgetCategory[] };
@@ -69,6 +71,8 @@ const BOOLEAN_CONFIG_ATTRIBUTES = new Set([
 
 const OMITTED_EMBED_ATTRIBUTES = new Set(["data-api-base", "data-api-key"]);
 
+const CONTROL_INPUT_CLASS =
+  "block w-full rounded-lg border border-stroke/80 bg-white px-2.5 py-2 text-[12px] text-dark shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-dark-3 dark:bg-dark-2 dark:text-white";
 function decodeBase64Url(input: string) {
   const normalized = input.replace(/-/g, "+").replace(/_/g, "/");
   if (typeof atob === "function") {
@@ -145,12 +149,29 @@ function formatAttributeLabel(attribute: string) {
     .join(" ");
 }
 
+function toFieldId(attribute: string) {
+  return `widget-${attribute.replace(/[^a-z0-9]/gi, "-")}`;
+}
+
 function escapeHtmlAttribute(value: string) {
   return value
     .replace(/&/g, "&amp;")
     .replace(/'/g, "&#39;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+}
+
+function resolveHexColor(value: string, fallback?: string) {
+  const trimmed = value.trim();
+  if (HEX_COLOR_RE.test(trimmed)) return trimmed;
+  if (fallback && HEX_COLOR_RE.test(fallback)) return fallback;
+  return "#000000";
+}
+
+function resolveNumberFallback(option: WidgetOption) {
+  if (typeof option.default === "number") return option.default;
+  if (typeof option.min === "number") return option.min;
+  return 0;
 }
 
 function getCustomAttributes(config?: SessionConfig) {
@@ -202,7 +223,520 @@ function buildEmbedCode(loaderUrl: string, attributes: Record<string, string>) {
   lines.push("></script>");
   return lines.join("\n");
 }
+function InfoIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      aria-hidden="true"
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <circle cx="10" cy="10" r="7.25" />
+      <path strokeLinecap="round" d="M10 8.1v5" />
+      <circle cx="10" cy="6.2" r="0.7" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
 
+function ChevronIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      aria-hidden="true"
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 8l4 4 4-4" />
+    </svg>
+  );
+}
+
+type InfoTooltipProps = {
+  content: string;
+};
+
+function InfoTooltip({ content }: InfoTooltipProps) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handleClick = (event: MouseEvent) => {
+      if (!wrapperRef.current) return;
+      if (!wrapperRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={wrapperRef} className="relative inline-flex">
+      <button
+        type="button"
+        aria-label="Info"
+        aria-expanded={open}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setOpen((prev) => !prev);
+        }}
+        className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-stroke/70 text-dark-5 transition hover:border-primary hover:text-primary dark:border-dark-3 dark:text-dark-6"
+      >
+        <InfoIcon />
+      </button>
+      {open ? (
+        <div
+          role="tooltip"
+          className="absolute right-0 top-full z-20 mt-2 w-64 rounded-xl bg-dark px-3 py-2 text-xs text-white shadow-lg dark:bg-white dark:text-dark"
+        >
+          <span className="absolute -top-1 right-3 h-2 w-2 rotate-45 bg-dark dark:bg-white" />
+          {content}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+type ToggleSwitchProps = {
+  value: string;
+  onChange: (next: string) => void;
+  disabled?: boolean;
+  labelId?: string;
+};
+
+function ToggleSwitch({ value, onChange, disabled, labelId }: ToggleSwitchProps) {
+  const isSet = value === "true" || value === "false";
+  const isOn = value === "true";
+  const trackClass = isOn
+    ? "bg-primary"
+    : isSet
+      ? "bg-gray-2 dark:bg-dark-3"
+      : "bg-gray-1/70 dark:bg-dark-4";
+
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={isOn}
+        aria-labelledby={labelId}
+        disabled={disabled}
+        onClick={() => {
+          if (disabled) return;
+          if (!isSet) {
+            onChange("true");
+          } else {
+            onChange(isOn ? "false" : "true");
+          }
+        }}
+        className={`relative inline-flex h-6 w-11 items-center rounded-full border border-transparent transition ${trackClass} disabled:cursor-not-allowed disabled:opacity-60`}
+      >
+        <span
+          className={`inline-flex h-5 w-5 transform items-center justify-center rounded-full bg-white shadow-sm transition ${
+            isOn ? "translate-x-5" : "translate-x-1"
+          }`}
+        />
+      </button>
+      <div className="flex items-center gap-2 text-[10px] text-dark-5 dark:text-dark-6">
+        <span>{isSet ? (isOn ? "On" : "Off") : "Default"}</span>
+        {isSet ? (
+          <button
+            type="button"
+            onClick={() => onChange("")}
+            disabled={disabled}
+            className="rounded-full border border-stroke/70 px-2 py-0.5 text-[10px] uppercase tracking-wide text-dark-5 transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:text-dark-6"
+          >
+            Reset
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+type OptionFieldProps = {
+  option: WidgetOption;
+  value: string;
+  onChange: (next: string) => void;
+  disabled?: boolean;
+  fieldId: string;
+  labelId: string;
+};
+
+function OptionField({
+  option,
+  value,
+  onChange,
+  disabled,
+  fieldId,
+  labelId,
+}: OptionFieldProps) {
+  const defaultText =
+    typeof option.default === "string"
+      ? option.default
+      : typeof option.default === "number" || typeof option.default === "boolean"
+        ? String(option.default)
+        : "";
+
+  if (option.type === "enum") {
+    return (
+      <div className="relative">
+        <select
+          id={fieldId}
+          name={option.attribute}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className={`${CONTROL_INPUT_CLASS} appearance-none pr-8`}
+          disabled={disabled}
+        >
+          <option value="">Use default</option>
+          {(option.values ?? []).map((entry) => (
+            <option key={entry} value={entry}>
+              {entry}
+            </option>
+          ))}
+        </select>
+        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-dark-5 dark:text-dark-6">
+          <ChevronIcon />
+        </span>
+      </div>
+    );
+  }
+
+  if (option.type === "boolean") {
+    return (
+      <ToggleSwitch
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+        labelId={labelId}
+      />
+    );
+  }
+
+  if (option.type === "number") {
+    const minValue = typeof option.min === "number" ? option.min : undefined;
+    const maxValue = typeof option.max === "number" ? option.max : undefined;
+    const numericValue = value.trim().length ? Number(value) : Number.NaN;
+    const rangeValue = Number.isFinite(numericValue)
+      ? numericValue
+      : resolveNumberFallback(option);
+
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] text-dark-5 dark:text-dark-6">
+          {typeof minValue === "number" ? minValue : ""}
+        </span>
+        <input
+          id={fieldId}
+          name={option.attribute}
+          type="range"
+          min={minValue}
+          max={maxValue}
+          step="1"
+          value={rangeValue}
+          onChange={(event) => onChange(event.target.value)}
+          className="h-2 flex-1 cursor-pointer appearance-none rounded-full bg-gray-2 accent-primary dark:bg-dark-3"
+          disabled={disabled}
+        />
+        <span className="text-[10px] text-dark-5 dark:text-dark-6">
+          {typeof maxValue === "number" ? maxValue : ""}
+        </span>
+        <input
+          type="number"
+          value={value}
+          min={minValue}
+          max={maxValue}
+          onChange={(event) => onChange(event.target.value)}
+          className="w-20 rounded-lg border border-stroke/80 bg-white px-2 py-1.5 text-[12px] text-dark shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+          placeholder={defaultText || undefined}
+          disabled={disabled}
+        />
+      </div>
+    );
+  }
+
+  if (option.type === "hex-color") {
+    const swatchValue = resolveHexColor(value, defaultText || undefined);
+    return (
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={swatchValue}
+          onChange={(event) => onChange(event.target.value)}
+          className="h-9 w-10 cursor-pointer rounded-md border border-stroke/70 bg-white p-0 shadow-sm dark:border-dark-3 dark:bg-dark-2"
+          aria-label={formatAttributeLabel(option.attribute)}
+          disabled={disabled}
+        />
+        <input
+          id={fieldId}
+          name={option.attribute}
+          type="text"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className={CONTROL_INPUT_CLASS}
+          placeholder={defaultText || "#000000"}
+          disabled={disabled}
+        />
+      </div>
+    );
+  }
+
+  const inputType = option.type === "url" ? "url" : "text";
+  return (
+    <input
+      id={fieldId}
+      name={option.attribute}
+      type={inputType}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className={CONTROL_INPUT_CLASS}
+      placeholder={defaultText || undefined}
+      disabled={disabled}
+    />
+  );
+}
+type ConfigurationPanelProps = {
+  categories: WidgetCategory[];
+  values: Record<string, string>;
+  onChange: (attribute: string, value: string) => void;
+  disabled?: boolean;
+};
+
+function ConfigurationPanel({
+  categories,
+  values,
+  onChange,
+  disabled,
+}: ConfigurationPanelProps) {
+  return (
+    <div className="space-y-4">
+      {categories.map((category, index) => (
+        <details
+          key={category.name}
+          className="group rounded-2xl border border-stroke/80 bg-white/70 shadow-sm backdrop-blur dark:border-dark-3 dark:bg-dark-2/70 [&>summary::-webkit-details-marker]:hidden"
+          open={index === 0}
+        >
+          <summary className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3">
+            <div>
+              <h3 className="text-sm font-semibold text-dark dark:text-white">
+                {category.name}
+              </h3>
+              {category.description ? (
+                <p className="text-xs text-dark-5 dark:text-dark-6">
+                  {category.description}
+                </p>
+              ) : null}
+            </div>
+            <div className="flex items-center gap-3 text-[11px] text-dark-5 dark:text-dark-6">
+              <span className="rounded-full border border-stroke/70 px-2 py-0.5 dark:border-dark-3">
+                {category.options.length} options
+              </span>
+              <span className="transition group-open:rotate-180">
+                <ChevronIcon />
+              </span>
+            </div>
+          </summary>
+          <div className="border-t border-stroke/70 px-4 py-4 dark:border-dark-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {category.options.map((option) => {
+                const fieldId = toFieldId(option.attribute);
+                const labelId = `${fieldId}-label`;
+                const isBoolean = option.type === "boolean";
+                const label = formatAttributeLabel(option.attribute);
+                const defaultText =
+                  typeof option.default === "string"
+                    ? option.default
+                    : typeof option.default === "number" || typeof option.default === "boolean"
+                      ? String(option.default)
+                      : "";
+                return (
+                  <div
+                    key={option.attribute}
+                    className="rounded-xl border border-stroke/70 bg-white/80 p-3 shadow-sm dark:border-dark-3 dark:bg-dark-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <label
+                          id={labelId}
+                          htmlFor={isBoolean ? undefined : fieldId}
+                          className="text-xs font-semibold text-dark dark:text-white"
+                        >
+                          {label}
+                        </label>
+                        <div className="mt-0.5 text-[10px] font-mono text-dark-5 dark:text-dark-6">
+                          {option.attribute}
+                        </div>
+                      </div>
+                      <InfoTooltip content={option.description} />
+                    </div>
+                    <div className="mt-3">
+                      <OptionField
+                        option={option}
+                        value={values[option.attribute] ?? ""}
+                        onChange={(next) => onChange(option.attribute, next)}
+                        disabled={disabled}
+                        fieldId={fieldId}
+                        labelId={labelId}
+                      />
+                    </div>
+                    {defaultText ? (
+                      <div className="mt-2 text-[10px] text-dark-5 dark:text-dark-6">
+                        Default: {defaultText}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </details>
+      ))}
+    </div>
+  );
+}
+type WidgetPreviewProps = {
+  enabled: boolean;
+  onToggle: () => void;
+  canPreview: boolean;
+  isWebWidgetType: boolean;
+  loaderUrl: string;
+  previewProps: {
+    loaderUrl?: string;
+    title?: string;
+    position?: string;
+    primaryColor?: string;
+    secondaryColor?: string;
+    accentColor?: string;
+    primaryFont?: string;
+    secondaryFont?: string;
+    borderColor?: string;
+    borderRadius?: string;
+    requireConsent?: boolean;
+    captureFields?: string;
+    escalationEnabled?: boolean;
+    debug?: boolean;
+  };
+};
+
+function WidgetPreview({
+  enabled,
+  onToggle,
+  canPreview,
+  isWebWidgetType,
+  loaderUrl,
+  previewProps,
+}: WidgetPreviewProps) {
+  const statusText = !isWebWidgetType
+    ? "Agent type is not WebWidgetChatbot or WebChatbot."
+    : loaderUrl
+      ? "Loader URL configured."
+      : "Loader URL missing.";
+
+  return (
+    <div className="rounded-2xl border border-stroke/80 bg-white/80 p-4 shadow-sm dark:border-dark-3 dark:bg-dark-2/80">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-base font-semibold text-dark dark:text-white">Preview</h3>
+          <p className="text-xs text-dark-5 dark:text-dark-6">
+            Launch the live widget with core appearance settings.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onToggle}
+          disabled={!canPreview}
+          className="inline-flex items-center rounded-full bg-primary px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {enabled ? "Hide Preview" : "Enable Preview"}
+        </button>
+      </div>
+      <div className="mt-3 text-xs text-dark-5 dark:text-dark-6">{statusText}</div>
+      {!canPreview ? (
+        <div className="mt-2 text-[11px] text-dark-5 dark:text-dark-6">
+          Add a loader URL and ensure the agent type is correct to enable preview.
+        </div>
+      ) : null}
+      {enabled && canPreview ? (
+        <WidgetLoader
+          loaderUrl={previewProps.loaderUrl}
+          title={previewProps.title}
+          position={previewProps.position}
+          primaryColor={previewProps.primaryColor}
+          secondaryColor={previewProps.secondaryColor}
+          accentColor={previewProps.accentColor}
+          primaryFont={previewProps.primaryFont}
+          secondaryFont={previewProps.secondaryFont}
+          borderColor={previewProps.borderColor}
+          borderRadius={previewProps.borderRadius}
+          requireConsent={previewProps.requireConsent}
+          captureFields={previewProps.captureFields}
+          escalationEnabled={previewProps.escalationEnabled}
+          debug={previewProps.debug}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+type EmbedCodePanelProps = {
+  code: string;
+  onCopy: () => void;
+  copyState: "idle" | "copied" | "error";
+};
+
+function EmbedCodePanel({ code, onCopy, copyState }: EmbedCodePanelProps) {
+  return (
+    <div className="rounded-2xl border border-stroke/80 bg-white/80 p-4 shadow-sm dark:border-dark-3 dark:bg-dark-2/80">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-base font-semibold text-dark dark:text-white">Embed Code</h3>
+          <p className="text-xs text-dark-5 dark:text-dark-6">
+            Copy this script tag into your site or tag manager.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onCopy}
+          disabled={!code}
+          className="inline-flex items-center rounded-full border border-stroke/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-dark transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:text-white"
+        >
+          {copyState === "copied" ? "Copied" : copyState === "error" ? "Copy failed" : "Copy Code"}
+        </button>
+      </div>
+      {code ? (
+        <pre className="custom-scrollbar mt-4 max-h-80 overflow-auto rounded-xl border border-stroke bg-white p-4 font-mono text-xs text-dark dark:border-dark-3 dark:bg-dark-2 dark:text-dark-6">
+          <code>{code}</code>
+        </pre>
+      ) : (
+        <p className="mt-4 text-xs text-dark-5 dark:text-dark-6">
+          Add a Widget Loader URL to generate the embed script.
+        </p>
+      )}
+      <p className="mt-2 text-[11px] text-dark-5 dark:text-dark-6">
+        API base and key attributes are omitted from the snippet for security.
+      </p>
+    </div>
+  );
+}
 type WebWidgetEditorProps = {
   sessionId: string;
 };
@@ -228,13 +762,23 @@ export function WebWidgetEditor({ sessionId }: WebWidgetEditorProps) {
   const [apiKeyName, setApiKeyName] = useState(DEFAULT_KEY_NAME);
   const [attributeValues, setAttributeValues] = useState<Record<string, string>>({});
   const [previewEnabled, setPreviewEnabled] = useState(false);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
+  const copyTimeoutRef = useRef<number | null>(null);
 
   const isWebWidgetType = useMemo(() => {
     const sessionType = session?.config?.type;
     return typeof sessionType === "string" && WEB_WIDGET_TYPES.has(sessionType);
   }, [session]);
 
-  const canPreview = Boolean(normalizeString(loaderUrl) ?? "");
+  const canPreview = Boolean(isWebWidgetType && normalizeString(loaderUrl));
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        window.clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!canPreview && previewEnabled) {
@@ -318,6 +862,37 @@ export function WebWidgetEditor({ sessionId }: WebWidgetEditorProps) {
     }));
     setSuccess(null);
   }, []);
+  const normalizedAttributes = useMemo(() => {
+    const next: Record<string, string> = {};
+    for (const attribute of ATTRIBUTE_ORDER) {
+      const rawValue = attributeValues[attribute];
+      if (typeof rawValue !== "string") continue;
+      const trimmedValue = rawValue.trim();
+      if (!trimmedValue) continue;
+      next[attribute] = trimmedValue;
+    }
+    return next;
+  }, [attributeValues]);
+
+  const embedCode = useMemo(
+    () => buildEmbedCode(loaderUrl, normalizedAttributes),
+    [loaderUrl, normalizedAttributes],
+  );
+
+  const handleCopy = useCallback(async () => {
+    if (!embedCode) return;
+    try {
+      await navigator.clipboard.writeText(embedCode);
+      setCopyState("copied");
+      if (copyTimeoutRef.current) {
+        window.clearTimeout(copyTimeoutRef.current);
+      }
+      copyTimeoutRef.current = window.setTimeout(() => setCopyState("idle"), 2000);
+    } catch (err) {
+      console.error("[WebWidgetEditor] Unable to copy embed code", err);
+      setCopyState("error");
+    }
+  }, [embedCode]);
 
   const handleSave = useCallback(async () => {
     if (!userId) {
@@ -385,23 +960,6 @@ export function WebWidgetEditor({ sessionId }: WebWidgetEditorProps) {
     }
   }, [apiKeyName, attributeValues, loaderUrl, session, sessionId, userId]);
 
-  const normalizedAttributes = useMemo(() => {
-    const next: Record<string, string> = {};
-    for (const attribute of ATTRIBUTE_ORDER) {
-      const rawValue = attributeValues[attribute];
-      if (typeof rawValue !== "string") continue;
-      const trimmedValue = rawValue.trim();
-      if (!trimmedValue) continue;
-      next[attribute] = trimmedValue;
-    }
-    return next;
-  }, [attributeValues]);
-
-  const embedCode = useMemo(
-    () => buildEmbedCode(loaderUrl, normalizedAttributes),
-    [loaderUrl, normalizedAttributes],
-  );
-
   const previewProps = useMemo(() => {
     const getValue = (attribute: string) =>
       normalizeString(attributeValues[attribute] ?? "");
@@ -422,92 +980,9 @@ export function WebWidgetEditor({ sessionId }: WebWidgetEditorProps) {
       debug: parseBooleanValue(attributeValues["data-debug"] ?? ""),
     };
   }, [attributeValues, loaderUrl]);
-
-  const renderOptionInput = (option: WidgetOption) => {
-    const value = attributeValues[option.attribute] ?? "";
-    const fieldId = `widget-${option.attribute}`;
-    const isDisabled = saving || loading;
-    const inputClassName =
-      "block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white";
-    const defaultText =
-      typeof option.default === "string"
-        ? option.default
-        : typeof option.default === "number" || typeof option.default === "boolean"
-          ? String(option.default)
-          : "";
-
-    if (option.type === "enum") {
-      return (
-        <select
-          id={fieldId}
-          name={option.attribute}
-          value={value}
-          onChange={(event) => handleAttributeChange(option.attribute, event.target.value)}
-          className={inputClassName}
-          disabled={isDisabled}
-        >
-          <option value="">Use default</option>
-          {(option.values ?? []).map((entry) => (
-            <option key={entry} value={entry}>
-              {entry}
-            </option>
-          ))}
-        </select>
-      );
-    }
-
-    if (option.type === "boolean") {
-      return (
-        <select
-          id={fieldId}
-          name={option.attribute}
-          value={value}
-          onChange={(event) => handleAttributeChange(option.attribute, event.target.value)}
-          className={inputClassName}
-          disabled={isDisabled}
-        >
-          <option value="">Use default</option>
-          <option value="true">true</option>
-          <option value="false">false</option>
-        </select>
-      );
-    }
-
-    if (option.type === "number") {
-      return (
-        <input
-          id={fieldId}
-          name={option.attribute}
-          type="number"
-          min={typeof option.min === "number" ? option.min : undefined}
-          max={typeof option.max === "number" ? option.max : undefined}
-          value={value}
-          onChange={(event) => handleAttributeChange(option.attribute, event.target.value)}
-          className={inputClassName}
-          placeholder={defaultText || undefined}
-          disabled={isDisabled}
-        />
-      );
-    }
-
-    const inputType = option.type === "url" ? "url" : "text";
-    return (
-      <input
-        id={fieldId}
-        name={option.attribute}
-        type={inputType}
-        value={value}
-        onChange={(event) => handleAttributeChange(option.attribute, event.target.value)}
-        className={inputClassName}
-        placeholder={defaultText || undefined}
-        disabled={isDisabled}
-      />
-    );
-  };
-
   if (loading) {
     return (
-      <div className="rounded-lg border border-stroke bg-white p-6 shadow-1 dark:border-dark-3 dark:bg-gray-dark dark:shadow-card">
+      <div className="rounded-2xl border border-stroke bg-white p-6 shadow-1 dark:border-dark-3 dark:bg-gray-dark dark:shadow-card">
         <div className="flex min-h-[160px] items-center justify-center">
           <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-primary border-t-transparent" />
         </div>
@@ -517,7 +992,7 @@ export function WebWidgetEditor({ sessionId }: WebWidgetEditorProps) {
 
   if (error && !session) {
     return (
-      <div className="rounded-lg border border-stroke bg-white p-6 shadow-1 dark:border-dark-3 dark:bg-gray-dark dark:shadow-card">
+      <div className="rounded-2xl border border-stroke bg-white p-6 shadow-1 dark:border-dark-3 dark:bg-gray-dark dark:shadow-card">
         <p className="text-sm text-dark-5 dark:text-dark-6">{error}</p>
       </div>
     );
@@ -527,54 +1002,86 @@ export function WebWidgetEditor({ sessionId }: WebWidgetEditorProps) {
     return null;
   }
 
+  const statusBadge = normalizeString(loaderUrl) ? "Ready" : "Needs loader URL";
+
   return (
     <div className="space-y-6">
       {error ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
           {error}
         </div>
       ) : null}
       {success ? (
-        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-900 dark:bg-green-950/30 dark:text-green-300">
+        <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-900 dark:bg-green-950/30 dark:text-green-300">
           {success}
         </div>
       ) : null}
       {!isWebWidgetType ? (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
           This agent is not marked as a WebWidgetChatbot or WebChatbot. Update the
           type to enable all widget settings.
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-dark-5 dark:text-dark-6">
-          Configure widget appearance, behavior, and embed attributes for this agent.
-        </p>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {saving ? "Saving..." : "Save Changes"}
-        </button>
+      <div className="relative overflow-hidden rounded-2xl border border-stroke/80 bg-white/80 p-5 shadow-sm dark:border-dark-3 dark:bg-dark-2/80">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-primary/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -left-10 h-40 w-40 rounded-full bg-[#0ea5e9]/10 blur-3xl" />
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-dark dark:text-white">
+              Web Widget Editor Dashboard
+            </h3>
+            <p className="text-sm text-dark-5 dark:text-dark-6">
+              Fine tune the visual system and runtime behavior for your embedded
+              widget.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="rounded-xl border border-stroke/70 bg-white/80 px-3 py-2 text-xs text-dark shadow-sm dark:border-dark-3 dark:bg-dark-3 dark:text-white">
+              <div className="text-[10px] uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                Status
+              </div>
+              <div className="font-semibold">{statusBadge}</div>
+            </div>
+            <div className="rounded-xl border border-stroke/70 bg-white/80 px-3 py-2 text-xs text-dark shadow-sm dark:border-dark-3 dark:bg-dark-3 dark:text-white">
+              <div className="text-[10px] uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                Categories
+              </div>
+              <div className="font-semibold">{WIDGET_CATEGORIES.length}</div>
+            </div>
+            <div className="rounded-xl border border-stroke/70 bg-white/80 px-3 py-2 text-xs text-dark shadow-sm dark:border-dark-3 dark:bg-dark-3 dark:text-white">
+              <div className="text-[10px] uppercase tracking-wide text-dark-5 dark:text-dark-6">
+                Options
+              </div>
+              <div className="font-semibold">{ALL_OPTIONS.length}</div>
+            </div>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="inline-flex items-center rounded-full bg-primary px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="space-y-6">
-          <div className="rounded-lg border border-stroke p-4 dark:border-dark-3">
+          <div className="rounded-2xl border border-stroke/80 bg-white/80 p-4 shadow-sm dark:border-dark-3 dark:bg-dark-2/80">
             <div className="flex flex-col gap-1">
               <h3 className="text-base font-semibold text-dark dark:text-white">
                 Widget Connection
               </h3>
-              <p className="text-sm text-dark-5 dark:text-dark-6">
-                The loader URL is required to preview and embed the widget.
+              <p className="text-xs text-dark-5 dark:text-dark-6">
+                Loader URL is required to preview and embed the widget.
               </p>
             </div>
             <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
                 <label
-                  className="mb-2 block text-sm font-medium text-dark dark:text-white"
+                  className="mb-2 block text-xs font-semibold text-dark dark:text-white"
                   htmlFor="web_widget_loader_url"
                 >
                   Widget Loader URL
@@ -588,14 +1095,14 @@ export function WebWidgetEditor({ sessionId }: WebWidgetEditorProps) {
                     setLoaderUrl(event.target.value);
                     setSuccess(null);
                   }}
-                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  className={CONTROL_INPUT_CLASS}
                   placeholder="https://example.com/widget-loader.js"
                   disabled={saving}
                 />
               </div>
               <div>
                 <label
-                  className="mb-2 block text-sm font-medium text-dark dark:text-white"
+                  className="mb-2 block text-xs font-semibold text-dark dark:text-white"
                   htmlFor="web_widget_api_key_name"
                 >
                   API Key Name
@@ -609,147 +1116,36 @@ export function WebWidgetEditor({ sessionId }: WebWidgetEditorProps) {
                     setApiKeyName(event.target.value);
                     setSuccess(null);
                   }}
-                  className="block w-full rounded-lg border border-stroke px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  className={CONTROL_INPUT_CLASS}
                   placeholder={DEFAULT_KEY_NAME}
                   disabled={saving}
                 />
-                <p className="mt-1 text-xs text-dark-5 dark:text-dark-6">
+                <p className="mt-1 text-[11px] text-dark-5 dark:text-dark-6">
                   Header name used by your widget API. Defaults to {DEFAULT_KEY_NAME}.
                 </p>
               </div>
             </div>
           </div>
 
-          {WIDGET_CATEGORIES.map((category) => (
-            <div
-              key={category.name}
-              className="rounded-lg border border-stroke p-4 dark:border-dark-3"
-            >
-              <div className="flex flex-col gap-1">
-                <h3 className="text-base font-semibold text-dark dark:text-white">
-                  {category.name}
-                </h3>
-                {category.description ? (
-                  <p className="text-sm text-dark-5 dark:text-dark-6">
-                    {category.description}
-                  </p>
-                ) : null}
-              </div>
-              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                {category.options.map((option) => {
-                  const defaultText =
-                    typeof option.default === "string"
-                      ? option.default
-                      : typeof option.default === "number" || typeof option.default === "boolean"
-                        ? String(option.default)
-                        : "";
-                  const hasRange =
-                    typeof option.min === "number" || typeof option.max === "number";
-                  return (
-                    <div key={option.attribute}>
-                      <label
-                        className="mb-1 block text-sm font-medium text-dark dark:text-white"
-                        htmlFor={`widget-${option.attribute}`}
-                      >
-                        {formatAttributeLabel(option.attribute)}
-                      </label>
-                      <div className="mb-2 text-[11px] font-mono text-dark-5 dark:text-dark-6">
-                        {option.attribute}
-                      </div>
-                      {renderOptionInput(option)}
-                      <p className="mt-1 text-xs text-dark-5 dark:text-dark-6">
-                        {option.description}
-                      </p>
-                      {defaultText ? (
-                        <p className="mt-1 text-[11px] text-dark-5 dark:text-dark-6">
-                          Default: {defaultText}
-                        </p>
-                      ) : null}
-                      {hasRange ? (
-                        <p className="mt-1 text-[11px] text-dark-5 dark:text-dark-6">
-                          Range:{" "}
-                          {typeof option.min === "number" ? option.min : "none"} -{" "}
-                          {typeof option.max === "number" ? option.max : "none"}
-                        </p>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+          <ConfigurationPanel
+            categories={WIDGET_CATEGORIES}
+            values={attributeValues}
+            onChange={handleAttributeChange}
+            disabled={saving}
+          />
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-lg border border-stroke p-4 dark:border-dark-3">
-            <div className="flex flex-col gap-1">
-              <h3 className="text-base font-semibold text-dark dark:text-white">Preview</h3>
-              <p className="text-sm text-dark-5 dark:text-dark-6">
-                Launch a live widget preview using the loader URL and key styling
-                attributes.
-              </p>
-            </div>
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setPreviewEnabled((prev) => !prev)}
-                disabled={!canPreview}
-                className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {previewEnabled ? "Hide Preview" : "Preview Widget"}
-              </button>
-              {!canPreview ? (
-                <span className="text-xs text-dark-5 dark:text-dark-6">
-                  Provide a loader URL to enable preview.
-                </span>
-              ) : null}
-            </div>
-            <p className="mt-3 text-xs text-dark-5 dark:text-dark-6">
-              Preview applies core appearance settings. Advanced attributes are
-              included in the embed snippet.
-            </p>
-            {previewEnabled && canPreview ? (
-              <WidgetLoader
-                loaderUrl={previewProps.loaderUrl}
-                title={previewProps.title}
-                position={previewProps.position}
-                primaryColor={previewProps.primaryColor}
-                secondaryColor={previewProps.secondaryColor}
-                accentColor={previewProps.accentColor}
-                primaryFont={previewProps.primaryFont}
-                secondaryFont={previewProps.secondaryFont}
-                borderColor={previewProps.borderColor}
-                borderRadius={previewProps.borderRadius}
-                requireConsent={previewProps.requireConsent}
-                captureFields={previewProps.captureFields}
-                escalationEnabled={previewProps.escalationEnabled}
-                debug={previewProps.debug}
-              />
-            ) : null}
-          </div>
+          <WidgetPreview
+            enabled={previewEnabled}
+            onToggle={() => setPreviewEnabled((prev) => !prev)}
+            canPreview={canPreview}
+            isWebWidgetType={isWebWidgetType}
+            loaderUrl={loaderUrl}
+            previewProps={previewProps}
+          />
 
-          <div className="rounded-lg border border-stroke p-4 dark:border-dark-3">
-            <div className="flex flex-col gap-1">
-              <h3 className="text-base font-semibold text-dark dark:text-white">
-                Embed Code
-              </h3>
-              <p className="text-sm text-dark-5 dark:text-dark-6">
-                Copy this script tag into your site or tag manager.
-              </p>
-            </div>
-            {embedCode ? (
-              <pre className="custom-scrollbar mt-4 max-h-80 overflow-auto rounded-xl border border-stroke bg-white p-4 font-mono text-xs text-dark dark:border-dark-3 dark:bg-dark-2 dark:text-dark-6">
-                <code>{embedCode}</code>
-              </pre>
-            ) : (
-              <p className="mt-4 text-sm text-dark-5 dark:text-dark-6">
-                Add a Widget Loader URL to generate the embed script.
-              </p>
-            )}
-            <p className="mt-2 text-xs text-dark-5 dark:text-dark-6">
-              API base and key attributes are omitted from the snippet for security.
-            </p>
-          </div>
+          <EmbedCodePanel code={embedCode} onCopy={handleCopy} copyState={copyState} />
         </div>
       </div>
     </div>
