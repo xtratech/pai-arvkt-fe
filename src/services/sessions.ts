@@ -57,6 +57,7 @@ export type SessionConfig = {
   web_widget_capture_fields?: string;
   web_widget_escalation_enabled?: boolean;
   web_widget_debug?: boolean;
+  web_widget_attributes?: Record<string, unknown>;
   [key: string]: unknown;
 };
 

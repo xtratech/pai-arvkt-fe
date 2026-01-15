@@ -1,0 +1,483 @@
+{
+    "configurationSchema": {
+        "version": "2.0.0",
+        "description": "Comprehensive configuration options for the web chat widget. Each attribute (i.e.: data-primary-color) can be passed to the web widget initialization script tag to overwrite the default setting in the widget loader.",
+        "categories": [
+            {
+                "name": "Branding & Colors",
+                "description": "Visual appearance customization for colors and theming",
+                "options": [
+                    {
+                        "attribute": "data-title",
+                        "description": "Header title text displayed at the top of the widget",
+                        "type": "string",
+                        "default": "Chat with us",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-position",
+                        "description": "Widget position on the screen",
+                        "type": "enum",
+                        "values": [
+                            "left",
+                            "right"
+                        ],
+                        "default": "right",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-primary-color",
+                        "description": "Primary brand color for user bubbles, send button, and accent elements",
+                        "type": "hex-color",
+                        "default": "#e62249",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-secondary-color",
+                        "description": "Secondary color for header background and agent bubbles",
+                        "type": "hex-color",
+                        "default": "#59111e",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-accent-color",
+                        "description": "Accent color for hover states and focus rings",
+                        "type": "hex-color",
+                        "default": "#ca0538",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-bg-color",
+                        "description": "Background color for the message list area",
+                        "type": "hex-color",
+                        "default": "#f5f1e8",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-user-bubble-color",
+                        "description": "Override color for user message bubbles (defaults to primary-color)",
+                        "type": "hex-color",
+                        "default": "",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-bot-bubble-color",
+                        "description": "Override color for bot message bubbles",
+                        "type": "hex-color",
+                        "default": "#ffffff",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-text-color",
+                        "description": "Main text color throughout the widget",
+                        "type": "hex-color",
+                        "default": "#000000",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-header-text-color",
+                        "description": "Text color for the header area",
+                        "type": "hex-color",
+                        "default": "#ffffff",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-border-color",
+                        "description": "Border color for the widget panel outline",
+                        "type": "hex-color",
+                        "default": "transparent",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-border-radius",
+                        "description": "Corner radius for the widget panel in pixels",
+                        "type": "number",
+                        "default": 24,
+                        "min": 0,
+                        "max": 50
+                    },
+                    {
+                        "attribute": "data-bubble-radius",
+                        "description": "Corner radius for message bubbles in pixels",
+                        "type": "number",
+                        "default": 20,
+                        "min": 0,
+                        "max": 30
+                    },
+                    {
+                        "attribute": "data-shadow-intensity",
+                        "description": "Shadow depth for the widget panel",
+                        "type": "enum",
+                        "values": [
+                            "none",
+                            "light",
+                            "medium",
+                            "heavy"
+                        ],
+                        "default": "medium",
+                        "min": null,
+                        "max": null
+                    }
+                ]
+            },
+            {
+                "name": "Typography",
+                "description": "Font family customization",
+                "options": [
+                    {
+                        "attribute": "data-primary-font",
+                        "description": "Primary font family for main text",
+                        "type": "string",
+                        "default": "\"Basis Grotesque Pro\", \"Segoe UI\", sans-serif",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-secondary-font",
+                        "description": "Secondary font family for titles and headings",
+                        "type": "string",
+                        "default": "\"Basis Grotesque Pro\", \"Segoe UI\", sans-serif",
+                        "min": null,
+                        "max": null
+                    }
+                ]
+            },
+            {
+                "name": "Layout & Sizing",
+                "description": "Dimensions and positioning of the widget",
+                "options": [
+                    {
+                        "attribute": "data-panel-width",
+                        "description": "Width of the chat panel in pixels",
+                        "type": "number",
+                        "default": 380,
+                        "min": 300,
+                        "max": 600
+                    },
+                    {
+                        "attribute": "data-panel-height",
+                        "description": "Height of the chat panel in pixels",
+                        "type": "number",
+                        "default": 600,
+                        "min": 400,
+                        "max": 800
+                    },
+                    {
+                        "attribute": "data-launcher-size",
+                        "description": "Size of the floating launcher button",
+                        "type": "enum",
+                        "values": [
+                            "small",
+                            "medium",
+                            "large"
+                        ],
+                        "default": "medium",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-launcher-icon",
+                        "description": "URL to a custom launcher icon image",
+                        "type": "url",
+                        "default": "",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-offset-x",
+                        "description": "Horizontal offset from screen edge in pixels",
+                        "type": "number",
+                        "default": 24,
+                        "min": 0,
+                        "max": 100
+                    },
+                    {
+                        "attribute": "data-offset-y",
+                        "description": "Vertical offset from screen bottom in pixels",
+                        "type": "number",
+                        "default": 24,
+                        "min": 0,
+                        "max": 100
+                    },
+                    {
+                        "attribute": "data-wide",
+                        "description": "Enable wider panel mode",
+                        "type": "boolean",
+                        "default": false,
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-compact",
+                        "description": "Enable ultra-compact mode for mobile",
+                        "type": "boolean",
+                        "default": false,
+                        "min": null,
+                        "max": null
+                    }
+                ]
+            },
+            {
+                "name": "Content & Copy",
+                "description": "Text content customization",
+                "options": [
+                    {
+                        "attribute": "data-subtitle",
+                        "description": "Subtitle text displayed below the header title",
+                        "type": "string",
+                        "default": "Replies within a minute when we are online.",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-placeholder",
+                        "description": "Placeholder text for the message input field",
+                        "type": "string",
+                        "default": "Type your message...",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-empty-state-text",
+                        "description": "Message displayed when there are no messages yet",
+                        "type": "string",
+                        "default": "Ask anything. We are here to help.",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-greeting",
+                        "description": "Auto-sent first bot message when chat opens",
+                        "type": "string",
+                        "default": "",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-powered-by",
+                        "description": "Powered by label text. Set to 'false' to hide",
+                        "type": "string",
+                        "default": "pluree.ai",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-clear-button-text",
+                        "description": "Text for the clear conversation button",
+                        "type": "string",
+                        "default": "Clear",
+                        "min": null,
+                        "max": null
+                    }
+                ]
+            },
+            {
+                "name": "Behavior & UX",
+                "description": "User experience and interaction settings",
+                "options": [
+                    {
+                        "attribute": "data-auto-open",
+                        "description": "Automatically open the chat panel on page load",
+                        "type": "boolean",
+                        "default": false,
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-auto-open-delay",
+                        "description": "Delay in milliseconds before auto-opening",
+                        "type": "number",
+                        "default": 3000,
+                        "min": 0,
+                        "max": 30000
+                    },
+                    {
+                        "attribute": "data-sound-enabled",
+                        "description": "Play sound notification on new messages",
+                        "type": "boolean",
+                        "default": false,
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-typing-indicator",
+                        "description": "Show typing dots while waiting for bot response",
+                        "type": "boolean",
+                        "default": true,
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-streaming-enabled",
+                        "description": "Enable text streaming effect for bot responses",
+                        "type": "boolean",
+                        "default": true,
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-focus-scroll-enabled",
+                        "description": "Enable Focus-Anchor scroll that docks user messages at top",
+                        "type": "boolean",
+                        "default": true,
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-suggestions-enabled",
+                        "description": "Show clickable suggestion pills below bot messages",
+                        "type": "boolean",
+                        "default": true,
+                        "min": null,
+                        "max": null
+                    }
+                ]
+            },
+            {
+                "name": "Data Collection",
+                "description": "User data capture and consent settings",
+                "options": [
+                    {
+                        "attribute": "data-require-consent",
+                        "description": "Require user consent before starting chat",
+                        "type": "boolean",
+                        "default": false,
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-capture-fields",
+                        "description": "Comma-separated list of fields to capture (name, email, phone)",
+                        "type": "string",
+                        "default": "",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-capture-timing",
+                        "description": "When to show capture form: before first message or after",
+                        "type": "enum",
+                        "values": [
+                            "before",
+                            "after"
+                        ],
+                        "default": "before",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-escalation-enabled",
+                        "description": "Show 'Talk to a human' escalation button",
+                        "type": "boolean",
+                        "default": false,
+                        "min": null,
+                        "max": null
+                    }
+                ]
+            },
+            {
+                "name": "Privacy & Security",
+                "description": "Data privacy and session management settings",
+                "options": [
+                    {
+                        "attribute": "data-cookie-consent",
+                        "description": "Require cookie consent before storing data",
+                        "type": "boolean",
+                        "default": false,
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-session-persistence",
+                        "description": "Persist session across page loads using localStorage",
+                        "type": "boolean",
+                        "default": true,
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-anonymous-mode",
+                        "description": "Don't store any user data or session history",
+                        "type": "boolean",
+                        "default": false,
+                        "min": null,
+                        "max": null
+                    }
+                ]
+            },
+            {
+                "name": "Internationalization",
+                "description": "Language and text direction settings",
+                "options": [
+                    {
+                        "attribute": "data-locale",
+                        "description": "Language code for the widget (e.g., en, ar, fr)",
+                        "type": "string",
+                        "default": "en",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-rtl",
+                        "description": "Enable right-to-left text direction for Arabic, Hebrew, etc.",
+                        "type": "boolean",
+                        "default": false,
+                        "min": null,
+                        "max": null
+                    }
+                ]
+            },
+            {
+                "name": "API & Identity",
+                "description": "Backend connection and widget identification",
+                "options": [
+                    {
+                        "attribute": "data-widget-id",
+                        "description": "Unique identifier for this widget instance",
+                        "type": "string",
+                        "default": "",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-api-base",
+                        "description": "Base URL for the chat API endpoint",
+                        "type": "url",
+                        "default": "",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-api-key",
+                        "description": "API authentication key",
+                        "type": "string",
+                        "default": "",
+                        "min": null,
+                        "max": null
+                    },
+                    {
+                        "attribute": "data-debug",
+                        "description": "Enable debug console logging",
+                        "type": "boolean",
+                        "default": false,
+                        "min": null,
+                        "max": null
+                    }
+                ]
+            }
+        ],
+        "totalOptions": 45,
+        "exampleUsage": "<script src=\"https://your-domain.com/widget-loader.js\" data-api-base=\"https://api.example.com\" data-api-key=\"your-api-key\" data-title=\"Support Chat\" data-primary-color=\"#007bff\" data-streaming-enabled=\"true\" data-suggestions-enabled=\"true\"></script>"
+    }
+}

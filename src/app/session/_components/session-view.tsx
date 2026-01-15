@@ -396,6 +396,12 @@ export function SessionView({ sessionId }: SessionViewProps) {
             >
               Chat Editor
             </Link>
+            <Link
+              href={`/web-widget-editor?session_id=${encodeURIComponent(session.id)}`}
+              className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-opacity-90"
+            >
+              Web Widget Editor
+            </Link>
             <button
               type="button"
               className="inline-flex items-center rounded-lg border border-red-200 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-red-600 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40"
