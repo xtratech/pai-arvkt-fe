@@ -755,6 +755,7 @@ type WidgetPreviewProps = {
     borderRadius?: string;
     requireConsent?: boolean;
     captureFields?: string;
+    firstSuggestions?: string;
     escalationEnabled?: boolean;
     debug?: boolean;
   };
@@ -812,6 +813,7 @@ function WidgetPreview({
           borderRadius={previewProps.borderRadius}
           requireConsent={previewProps.requireConsent}
           captureFields={previewProps.captureFields}
+          firstSuggestions={previewProps.firstSuggestions}
           escalationEnabled={previewProps.escalationEnabled}
           debug={previewProps.debug}
         />
@@ -1110,6 +1112,7 @@ export function WebWidgetEditor({ sessionId }: WebWidgetEditorProps) {
       borderRadius: getValue("data-border-radius"),
       requireConsent: parseBooleanValue(attributeValues["data-require-consent"] ?? ""),
       captureFields: getValue("data-capture-fields"),
+      firstSuggestions: getValue("data-first-suggestions"),
       escalationEnabled: parseBooleanValue(attributeValues["data-escalation-enabled"] ?? ""),
       debug: parseBooleanValue(attributeValues["data-debug"] ?? ""),
     };

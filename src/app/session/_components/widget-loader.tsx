@@ -26,6 +26,7 @@ type WidgetLoaderProps = {
   borderRadius?: string | null;
   requireConsent?: boolean | string | null;
   captureFields?: string | null;
+  firstSuggestions?: string | null;
   escalationEnabled?: boolean | string | null;
   debug?: boolean | string | null;
 };
@@ -44,13 +45,17 @@ function normalizeBoolean(value?: boolean | string | null) {
   return undefined;
 }
 
-function normalizeCaptureFields(value?: string | null) {
+function normalizeCsvList(value?: string | null) {
   if (!value) return "";
   return value
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean)
     .join(",");
+}
+
+function normalizeCaptureFields(value?: string | null) {
+  return normalizeCsvList(value);
 }
 
 function setDataAttribute(
@@ -90,6 +95,7 @@ export function WidgetLoader({
   borderRadius,
   requireConsent,
   captureFields,
+  firstSuggestions,
   escalationEnabled,
   debug,
 }: WidgetLoaderProps) {
@@ -141,6 +147,11 @@ export function WidgetLoader({
 
     const normalizedCaptureFields = normalizeCaptureFields(captureFields);
     setDataAttribute(script, "data-capture-fields", normalizedCaptureFields);
+    setDataAttribute(
+      script,
+      "data-first-suggestions",
+      normalizeCsvList(firstSuggestions),
+    );
 
     setBooleanAttribute(script, "data-require-consent", normalizeBoolean(requireConsent));
     setBooleanAttribute(
@@ -192,6 +203,7 @@ export function WidgetLoader({
     captureFields,
     debug,
     escalationEnabled,
+    firstSuggestions,
     loaderUrl,
     position,
     primaryColor,

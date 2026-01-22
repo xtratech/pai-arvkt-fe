@@ -257,6 +257,14 @@
                         "max": null
                     },
                     {
+                        "attribute": "data-first-suggestions",
+                        "description": "Comma-separated suggestion pills shown before any messages (empty state)",
+                        "type": "string",
+                        "default": "",
+                        "min": null,
+                        "max": null
+                    },
+                    {
                         "attribute": "data-greeting",
                         "description": "Auto-sent first bot message when chat opens",
                         "type": "string",
@@ -477,7 +485,7 @@
                 ]
             }
         ],
-        "totalOptions": 45,
+        "totalOptions": 46,
         "exampleUsage": "<script src=\"https://your-domain.com/widget-loader.js\" data-api-base=\"https://api.example.com\" data-api-key=\"your-api-key\" data-title=\"Support Chat\" data-primary-color=\"#007bff\" data-streaming-enabled=\"true\" data-suggestions-enabled=\"true\"></script>"
     }
 }
