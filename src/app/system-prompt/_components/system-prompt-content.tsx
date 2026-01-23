@@ -255,6 +255,7 @@ function deriveWalletUsage(usage: ChatUsageMetadata | undefined) {
 type ProfileId = "default" | "kb_expert" | "kb_analyzer" | "kb_creator";
 
 const TRAINING_TOKEN_COST = 28_000;
+const WEB_WIDGET_TRAINING_COMMAND = "update-webwidget-knowledgE";
 
 const TRAINING_COMMANDS: Record<ProfileId, string> = {
   default: "update-knowledgE",
@@ -1000,7 +1001,10 @@ export function SystemPromptContent({
     async (profile: ProfileId) => {
       if (trainingProfile) return;
 
-      const command = TRAINING_COMMANDS[profile];
+      const command =
+        profile === "default" && isWebWidgetType
+          ? WEB_WIDGET_TRAINING_COMMAND
+          : TRAINING_COMMANDS[profile];
       if (!command) {
         setTrainError("Training command is not configured.");
         return;
@@ -1074,6 +1078,7 @@ export function SystemPromptContent({
       chatKeyValue,
       chatRequestSchema,
       defaultAssistantLabel,
+      isWebWidgetType,
       trainingProfile,
       trainingUserId,
     ],
