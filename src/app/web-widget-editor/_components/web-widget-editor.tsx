@@ -613,7 +613,7 @@ function ConfigurationTabs({
             className="space-y-4"
           >
             <div>
-              <h3 className="text-sm font-semibold text-dark dark:text-white">
+              <h3 className="text-sm font-semibold text-primary dark:text-white">
                 {connectionLabel}
               </h3>
               <p className="text-xs text-dark-5 dark:text-dark-6">
@@ -670,7 +670,7 @@ function ConfigurationTabs({
             className="space-y-4"
           >
             <div>
-              <h3 className="text-sm font-semibold text-dark dark:text-white">
+              <h3 className="text-sm font-semibold text-primary dark:text-white">
                 {activeCategory.name}
               </h3>
               {activeCategory.description ? (
@@ -779,7 +779,7 @@ function WidgetPreview({
     <div className="rounded-2xl border border-stroke/80 bg-white/80 p-4 shadow-sm dark:border-dark-3 dark:bg-dark-2/80">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-base font-semibold text-dark dark:text-white">Preview</h3>
+          <h3 className="text-base font-semibold text-primary dark:text-white">Preview</h3>
           <p className="text-xs text-dark-5 dark:text-dark-6">
             Launch the live widget with core appearance settings.
           </p>
@@ -833,7 +833,7 @@ function EmbedCodePanel({ code, onCopy, copyState }: EmbedCodePanelProps) {
     <div className="rounded-2xl border border-stroke/80 bg-white/80 p-4 shadow-sm dark:border-dark-3 dark:bg-dark-2/80">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-base font-semibold text-dark dark:text-white">Embed Code</h3>
+          <h3 className="text-base font-semibold text-primary dark:text-white">Embed Code</h3>
           <p className="text-xs text-dark-5 dark:text-dark-6">
             Copy this script tag into your site or tag manager.
           </p>
@@ -1165,7 +1165,7 @@ export function WebWidgetEditor({ sessionId }: WebWidgetEditorProps) {
         <div className="pointer-events-none absolute -bottom-20 -left-10 h-40 w-40 rounded-full bg-[#0ea5e9]/10 blur-3xl" />
         <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-dark dark:text-white">
+            <h3 className="text-lg font-semibold text-primary dark:text-white">
               Web Widget Editor Dashboard
             </h3>
             <p className="text-sm text-dark-5 dark:text-dark-6">

@@ -71,7 +71,7 @@ export function ParticleCanvas() {
                     ? Math.random() > 0.6
                         ? "255, 255, 92" // Yellow (#FFFF5C)
                         : Math.random() > 0.5
-                            ? "169, 240, 15" // Lime (#A9F00F)
+                            ? "255, 255, 138" // Soft Yellow (#FFFF8A)
                             : "167, 139, 250" // Violet
                     : "15, 23, 42"; // Slate-900
 

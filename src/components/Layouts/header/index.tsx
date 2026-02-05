@@ -36,7 +36,7 @@ export function Header() {
       )}
 
       <div className="max-xl:hidden">
-        <h1 className="mb-0.5 text-heading-5 font-bold text-dark dark:text-white">
+        <h1 className="mb-0.5 text-heading-5 font-bold text-primary dark:text-white">
           Pluree Toolkit
         </h1>
         <p className="font-medium text-dark-5 dark:text-dark-6">Your KnowledgeBase, tamed and activated.</p>

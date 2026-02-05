@@ -160,12 +160,12 @@ export function TokenBalancePill() {
       title={tooltip}
       className="group inline-flex items-center gap-2 rounded-full border border-stroke bg-white px-3 py-2 text-xs font-semibold text-dark shadow-sm transition hover:bg-gray-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 dark:border-dark-3 dark:bg-dark-2 dark:text-white dark:hover:bg-dark-3"
     >
-      <span className="inline-flex h-2 w-2 rounded-full bg-[rgb(169_240_15)]" aria-hidden />
+      <span className="inline-flex h-2 w-2 rounded-full bg-primary" aria-hidden />
       <span className="hidden sm:inline">Tokens</span>
       {loading ? (
         <span className="h-3 w-14 animate-pulse rounded bg-gray-2 dark:bg-dark-3" aria-hidden />
       ) : (
-        <span className="tabular-nums text-[rgb(169_240_15)]">{balanceText}</span>
+        <span className="tabular-nums text-primary">{balanceText}</span>
       )}
     </Link>
   );

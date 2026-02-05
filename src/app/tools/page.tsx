@@ -8,7 +8,7 @@ export default function ToolsPage() {
   return (
     <div className="mx-auto w-full max-w-[1460px]">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-dark dark:text-white">Tools</h1>
+        <h1 className="text-2xl font-bold text-primary dark:text-white">Tools</h1>
         <p className="text-sm text-dark-5 dark:text-dark-6">
           Utilities and shortcuts to manage your agents and workflows.
         </p>

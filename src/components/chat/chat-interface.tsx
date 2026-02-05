@@ -2277,7 +2277,7 @@ function Message({
                 <ReactMarkdown components={BOT_MARKDOWN_COMPONENTS}>{text}</ReactMarkdown>
               )}
               {!isUser && tokenUsageText ? (
-                <div className="mt-2 text-[10px] font-semibold text-[rgb(169_240_15)]">
+                <div className="mt-2 text-[10px] font-semibold text-primary">
                   Tokens: {tokenUsageText}
                 </div>
               ) : null}

@@ -1750,7 +1750,7 @@ export function KbArticlesContent({ sessionId }: Props) {
       <div className="rounded-[10px] bg-white p-6 shadow-1 dark:bg-gray-dark dark:shadow-card">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-lg font-semibold text-dark dark:text-white">Knowledgebase Articles</h3>
+            <h3 className="text-lg font-semibold text-primary dark:text-white">Knowledgebase Articles</h3>
             <p className="mt-1 text-sm text-dark-5 dark:text-dark-6">
               Agent KB endpoint is not configured for this agent.
             </p>
@@ -1770,7 +1770,7 @@ export function KbArticlesContent({ sessionId }: Props) {
     <>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-dark dark:text-white">Knowledgebase Articles</h2>
+          <h2 className="text-lg font-semibold text-primary dark:text-white">Knowledgebase Articles</h2>
           <div className="mt-1 text-sm text-dark-5 dark:text-dark-6">
             Agent:{" "}
             <Link href={sessionLinkHref} className="font-semibold text-primary hover:underline">
@@ -2015,7 +2015,7 @@ export function KbArticlesContent({ sessionId }: Props) {
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <div className="text-sm font-semibold text-dark dark:text-white">Smart Draft Wizard</div>
+                    <div className="text-sm font-semibold text-primary dark:text-white">Smart Draft Wizard</div>
                     <div className="mt-1 text-xs text-dark-5 dark:text-dark-6">
                       Draft a new knowledge base article, check for duplicates, then save.
                     </div>
@@ -2551,7 +2551,7 @@ export function KbArticlesContent({ sessionId }: Props) {
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <div className="text-sm font-semibold text-dark dark:text-white">Edit Knowledge Base Article</div>
+                    <div className="text-sm font-semibold text-primary dark:text-white">Edit Knowledge Base Article</div>
                     <div className="mt-1 text-xs text-dark-5 dark:text-dark-6">
                       Update the article and save to publish.
                     </div>

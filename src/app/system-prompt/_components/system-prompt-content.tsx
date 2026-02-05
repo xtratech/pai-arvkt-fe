@@ -1341,7 +1341,7 @@ export function SystemPromptContent({
           <div className="rounded-xl border border-stroke bg-white p-4 shadow-sm dark:border-dark-3 dark:bg-dark-2">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <div className="text-sm font-semibold text-dark dark:text-white">System prompt</div>
+                <div className="text-sm font-semibold text-primary dark:text-white">System prompt</div>
                 <div className="mt-0.5 text-xs text-dark-5 dark:text-dark-6">
                   Defines the assistant’s behavior and rules.
                 </div>
@@ -1377,7 +1377,7 @@ export function SystemPromptContent({
           <div className="rounded-xl border border-stroke bg-white p-4 shadow-sm dark:border-dark-3 dark:bg-dark-2">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <div className="text-sm font-semibold text-dark dark:text-white">Suggestions prompt</div>
+                <div className="text-sm font-semibold text-primary dark:text-white">Suggestions prompt</div>
                 <div className="mt-0.5 text-xs text-dark-5 dark:text-dark-6">
                   Used to generate follow‑up questions or suggestions.
                 </div>
@@ -1413,7 +1413,7 @@ export function SystemPromptContent({
 
         <div className="space-y-4 lg:col-span-1">
           <div className="rounded-xl border border-stroke bg-white p-4 shadow-sm dark:border-dark-3 dark:bg-dark-2">
-            <div className="text-sm font-semibold text-dark dark:text-white">Model settings</div>
+            <div className="text-sm font-semibold text-primary dark:text-white">Model settings</div>
             <div className="mt-0.5 text-xs text-dark-5 dark:text-dark-6">Tuning parameters for generation.</div>
 
             <div className="mt-4 space-y-2">

@@ -373,7 +373,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
       <div className="col-span-12 rounded-[10px] bg-white p-6 shadow-1 dark:bg-gray-dark dark:shadow-card">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="text-body-2xlg font-bold text-dark dark:text-white">
+            <h2 className="text-body-2xlg font-bold text-primary dark:text-white">
               {session.name}
             </h2>
             <p className="mt-1 text-sm text-dark-5 dark:text-dark-6">
@@ -474,7 +474,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
           aria-labelledby="session-tab-basics"
         >
           <div className="flex flex-col gap-1">
-            <h3 className="text-base font-semibold text-dark dark:text-white">Basics</h3>
+            <h3 className="text-base font-semibold text-primary dark:text-white">Basics</h3>
             <p className="text-sm text-dark-5 dark:text-dark-6">
               Key facts and ownership details for this agent.
             </p>
@@ -518,7 +518,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
           aria-labelledby="session-tab-integrations"
         >
           <div className="flex flex-col gap-1">
-            <h3 className="text-base font-semibold text-dark dark:text-white">Integrations</h3>
+            <h3 className="text-base font-semibold text-primary dark:text-white">Integrations</h3>
             <p className="text-sm text-dark-5 dark:text-dark-6">
               Connection details for chat delivery and knowledge sources.
             </p>
@@ -531,7 +531,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
             <div className="mt-4 space-y-4">
               {hasChatApi ? (
                 <div className="rounded-md border border-gray-2 p-3 dark:border-dark-3">
-                  <h4 className="text-sm font-semibold text-dark dark:text-white">Chat API</h4>
+                  <h4 className="text-sm font-semibold text-primary dark:text-white">Chat API</h4>
                   <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
                     <dt className="text-dark-5 dark:text-dark-6">Endpoint</dt>
                     <dd className="break-all text-dark dark:text-white">
@@ -555,7 +555,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
               {hasAgentConfig ? (
                 <div className="rounded-md border border-gray-2 p-3 dark:border-dark-3">
-                  <h4 className="text-sm font-semibold text-dark dark:text-white">Agent Config</h4>
+                  <h4 className="text-sm font-semibold text-primary dark:text-white">Agent Config</h4>
                   <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
                     <dt className="text-dark-5 dark:text-dark-6">Endpoint</dt>
                     <dd className="break-all text-dark dark:text-white">
@@ -575,7 +575,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
               {hasAgentKb ? (
                 <div className="rounded-md border border-gray-2 p-3 dark:border-dark-3">
-                  <h4 className="text-sm font-semibold text-dark dark:text-white">Agent KB</h4>
+                  <h4 className="text-sm font-semibold text-primary dark:text-white">Agent KB</h4>
                   <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
                     <dt className="text-dark-5 dark:text-dark-6">Endpoint</dt>
                     <dd className="break-all text-dark dark:text-white">
@@ -605,7 +605,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
           aria-labelledby="session-tab-web_widget"
         >
           <div className="flex flex-col gap-1">
-            <h3 className="text-base font-semibold text-dark dark:text-white">Web Widget</h3>
+            <h3 className="text-base font-semibold text-primary dark:text-white">Web Widget</h3>
             <p className="text-sm text-dark-5 dark:text-dark-6">
               Widget appearance, behavior, and integration settings.
             </p>
@@ -621,7 +621,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
           ) : (
             <div className="mt-4 space-y-4">
               <div className="rounded-md border border-gray-2 p-3 dark:border-dark-3">
-                <h4 className="text-sm font-semibold text-dark dark:text-white">Experience</h4>
+                <h4 className="text-sm font-semibold text-primary dark:text-white">Experience</h4>
                 <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
                   <dt className="text-dark-5 dark:text-dark-6">Title</dt>
                   <dd className="text-dark dark:text-white">
@@ -663,7 +663,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
               </div>
 
               <div className="rounded-md border border-gray-2 p-3 dark:border-dark-3">
-                <h4 className="text-sm font-semibold text-dark dark:text-white">Behavior</h4>
+                <h4 className="text-sm font-semibold text-primary dark:text-white">Behavior</h4>
                 <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
                   <dt className="text-dark-5 dark:text-dark-6">Require Consent</dt>
                   <dd className="text-dark dark:text-white">
@@ -685,7 +685,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
               </div>
 
               <div className="rounded-md border border-gray-2 p-3 dark:border-dark-3">
-                <h4 className="text-sm font-semibold text-dark dark:text-white">Integration</h4>
+                <h4 className="text-sm font-semibold text-primary dark:text-white">Integration</h4>
                 <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
                   <dt className="text-dark-5 dark:text-dark-6">API Endpoint</dt>
                   <dd className="break-all text-dark dark:text-white">
@@ -718,7 +718,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
           aria-labelledby="session-tab-web_widget_embed"
         >
           <div className="flex flex-col gap-1">
-            <h3 className="text-base font-semibold text-dark dark:text-white">Web Widget Embed</h3>
+            <h3 className="text-base font-semibold text-primary dark:text-white">Web Widget Embed</h3>
             <p className="text-sm text-dark-5 dark:text-dark-6">
               Copy and paste this script into your site or GTM tag.
             </p>
@@ -764,7 +764,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
       {confirmDeleteSession ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-dark">
-            <h4 className="text-lg font-semibold text-dark dark:text-white">Delete Agent</h4>
+            <h4 className="text-lg font-semibold text-primary dark:text-white">Delete Agent</h4>
             <p className="mt-3 text-sm text-dark-5 dark:text-dark-6">
               Are you sure you want to delete this agent? This action cannot be undone.
             </p>

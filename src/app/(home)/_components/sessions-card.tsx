@@ -193,7 +193,7 @@ export function SessionsCard({ className = "" }: { className?: string }) {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <h2 className="px-1.5 text-body-2xlg font-bold text-dark dark:text-white">Agents</h2>
+              <h2 className="px-1.5 text-body-2xlg font-bold text-primary dark:text-white">Agents</h2>
               {!loading ? (
                 <span className="rounded-full bg-gray-2 px-2 py-0.5 text-xs font-semibold text-dark dark:bg-dark-3 dark:text-dark-6">
                   {filteredSessions.length}
@@ -357,7 +357,7 @@ export function SessionsCard({ className = "" }: { className?: string }) {
                 );
 
               const botActionClassName =
-                "inline-flex items-center rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-primary shadow-sm transition hover:bg-primary/15 dark:border-primary/30 dark:bg-primary/15 dark:hover:bg-primary/20";
+                "inline-flex items-center rounded-lg border border-stroke bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-primary transition hover:border-primary/40 dark:border-dark-3 dark:bg-dark-2 dark:text-white";
 
               const tooltipSections = [
                 { label: "Chat Editor", items: missingChatProps },
@@ -383,7 +383,7 @@ export function SessionsCard({ className = "" }: { className?: string }) {
                       <div className="flex items-start gap-3">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <div className="truncate text-base font-semibold text-dark dark:text-white">
+                            <div className="truncate text-base font-semibold text-primary dark:text-white">
                               {session.name}
                             </div>
                             <span

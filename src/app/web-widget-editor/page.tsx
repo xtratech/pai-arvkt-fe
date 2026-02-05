@@ -37,7 +37,7 @@ export default async function WebWidgetEditorPage({
       <div className="mt-6 rounded-[10px] border border-stroke bg-white p-4 shadow-1 dark:border-dark-3 dark:bg-gray-dark dark:shadow-card sm:p-7.5">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-dark dark:text-white">Web Widget Editor</h2>
+            <h2 className="text-lg font-semibold text-primary dark:text-white">Web Widget Editor</h2>
             <div className="mt-1 text-sm text-dark-5 dark:text-dark-6">
               Agent:{" "}
               <span className="font-medium text-dark dark:text-white">

@@ -3,6 +3,14 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-primary: 51 63 112; /* #333F70 */
+  }
+
+  .dark {
+    --color-primary: 255 255 92; /* #FFFF5C */
+  }
+
   body {
     @apply bg-gray-2 text-dark-5 dark:bg-[#020D1A] dark:text-dark-6;
   }
@@ -42,6 +50,16 @@
 
   .inbox-height {
     @apply h-[calc(100vh_-_8.125rem)] lg:h-[calc(100vh_-_5.625rem)];
+  }
+
+  .dark .bg-primary {
+    color: #0b0b0b;
+  }
+
+  .dark .bg-primary:hover,
+  .dark .bg-primary:focus-visible,
+  .dark .bg-primary:active {
+    color: #0b0b0b;
   }
 }
 

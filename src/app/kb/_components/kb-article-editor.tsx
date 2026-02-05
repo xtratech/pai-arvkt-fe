@@ -177,7 +177,7 @@ export function KbArticleEditor({ sessionId, articleId }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-dark dark:text-white">Knowledgebase Article</h2>
+        <h2 className="text-lg font-semibold text-primary dark:text-white">Knowledgebase Article</h2>
         <div className="mt-1 text-sm text-dark-5 dark:text-dark-6">
           Agent:{" "}
           <span className="font-medium text-dark dark:text-white">{session?.name ?? resolvedSessionId}</span>

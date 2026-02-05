@@ -415,7 +415,7 @@ export function TokenWalletPanel({ userId, wallet, loading, onWalletUpdated, onR
           <div className="text-sm font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
             Token Balance
           </div>
-          <div className="mt-1 text-3xl lg:text-6xl font-bold leading-none tabular-nums text-[rgb(169_240_15)]">
+          <div className="mt-1 text-3xl lg:text-6xl font-bold leading-none tabular-nums text-primary">
             {loading ? "…" : formatTokenCount(creditBalance)}
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-3 text-lg text-dark-5 dark:text-dark-6">
@@ -524,7 +524,7 @@ export function TokenWalletPanel({ userId, wallet, loading, onWalletUpdated, onR
             <div className="text-xs font-semibold uppercase tracking-wide text-dark-5 dark:text-dark-6">
               This purchase adds
             </div>
-            <div className="mt-1 text-xl font-bold tabular-nums text-[rgb(169_240_15)]">
+            <div className="mt-1 text-xl font-bold tabular-nums text-primary">
               +{formatTokenCount(totalTokensToBuy)} tokens
             </div>
             <div className="mt-1 text-xs text-dark-5 dark:text-dark-6">

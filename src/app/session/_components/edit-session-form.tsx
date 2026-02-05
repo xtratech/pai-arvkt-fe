@@ -361,7 +361,7 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
     >
       <div className="space-y-2">
         <div>
-          <h2 className="text-lg font-semibold text-dark dark:text-white">Agent settings</h2>
+          <h2 className="text-lg font-semibold text-primary dark:text-white">Agent settings</h2>
           <p className="text-sm text-dark-5 dark:text-dark-6">
             Update the public-facing details and delivery settings for this agent.
           </p>
@@ -382,7 +382,7 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
 
       <div className="rounded-lg border border-stroke p-4 dark:border-dark-3">
         <div className="flex flex-col gap-1">
-          <h3 className="text-base font-semibold text-dark dark:text-white">Basics</h3>
+          <h3 className="text-base font-semibold text-primary dark:text-white">Basics</h3>
           <p className="text-sm text-dark-5 dark:text-dark-6">
             Name and type help your team understand where this agent is used.
           </p>
@@ -451,7 +451,7 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
       {isWebWidgetType ? (
         <div className="rounded-lg border border-stroke p-4 dark:border-dark-3">
         <div className="flex flex-col gap-1">
-          <h3 className="text-base font-semibold text-dark dark:text-white">Web Widget</h3>
+          <h3 className="text-base font-semibold text-primary dark:text-white">Web Widget</h3>
           <p className="text-sm text-dark-5 dark:text-dark-6">
             Configure the embedded widget experience. Leave blank if this agent is not used on the web.
           </p>
@@ -459,7 +459,7 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
         <div className="mt-4 space-y-6">
           <div className="space-y-3">
             <div>
-              <h4 className="text-sm font-semibold text-dark dark:text-white">Experience</h4>
+              <h4 className="text-sm font-semibold text-primary dark:text-white">Experience</h4>
               <p className="text-xs text-dark-5 dark:text-dark-6">
                 Title, placement, and visual style for the widget.
               </p>
@@ -607,7 +607,7 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
 
           <div className="space-y-3">
             <div>
-              <h4 className="text-sm font-semibold text-dark dark:text-white">Behavior</h4>
+              <h4 className="text-sm font-semibold text-primary dark:text-white">Behavior</h4>
               <p className="text-xs text-dark-5 dark:text-dark-6">
                 Consent and capture settings for user interactions.
               </p>
@@ -687,7 +687,7 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
 
           <div className="space-y-3">
             <div>
-              <h4 className="text-sm font-semibold text-dark dark:text-white">Integration</h4>
+              <h4 className="text-sm font-semibold text-primary dark:text-white">Integration</h4>
               <p className="text-xs text-dark-5 dark:text-dark-6">
                 Endpoints and keys used by the widget runtime.
               </p>
@@ -762,7 +762,7 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
       <details className="rounded-lg border border-stroke p-4 dark:border-dark-3 [&>summary::-webkit-details-marker]:hidden">
         <summary className="flex cursor-pointer items-start justify-between gap-4">
           <div>
-            <h3 className="text-base font-semibold text-dark dark:text-white">Advanced integrations</h3>
+            <h3 className="text-base font-semibold text-primary dark:text-white">Advanced integrations</h3>
             <p className="text-sm text-dark-5 dark:text-dark-6">
               Optional settings for custom chat APIs, config endpoints, and knowledge base access.
             </p>
@@ -775,7 +775,7 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
         <div className="mt-4 space-y-6">
           <div className="space-y-3">
             <div>
-              <h4 className="text-sm font-semibold text-dark dark:text-white">Chat API</h4>
+              <h4 className="text-sm font-semibold text-primary dark:text-white">Chat API</h4>
               <p className="text-xs text-dark-5 dark:text-dark-6">
                 Use when this agent connects to a custom chat backend.
               </p>
@@ -876,7 +876,7 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
 
           <div className="space-y-3">
             <div>
-              <h4 className="text-sm font-semibold text-dark dark:text-white">Agent Config</h4>
+              <h4 className="text-sm font-semibold text-primary dark:text-white">Agent Config</h4>
               <p className="text-xs text-dark-5 dark:text-dark-6">
                 Optional endpoint for live configuration updates.
               </p>
@@ -932,7 +932,7 @@ export function EditSessionForm({ sessionId }: { sessionId: string }) {
 
           <div className="space-y-3">
             <div>
-              <h4 className="text-sm font-semibold text-dark dark:text-white">Agent KB</h4>
+              <h4 className="text-sm font-semibold text-primary dark:text-white">Agent KB</h4>
               <p className="text-xs text-dark-5 dark:text-dark-6">
                 Optional knowledge base service integration.
               </p>

@@ -186,3 +186,22 @@ export function ArrowLeftIcon(props: PropsType) {
     </svg>
   );
 }
+
+export function GuideIcon(props: PropsType) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={24}
+      height={24}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      {...props}
+    >
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M2.25 12a9.75 9.75 0 1119.5 0 9.75 9.75 0 01-19.5 0zm10.74-4.5a.75.75 0 10-1.5 0v.75a.75.75 0 001.5 0V7.5zm-.75 3a.75.75 0 00-.75.75v5.25a.75.75 0 001.5 0v-5.25a.75.75 0 00-.75-.75z"
+      />
+    </svg>
+  );
+}

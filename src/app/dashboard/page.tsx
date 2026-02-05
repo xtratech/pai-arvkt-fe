@@ -33,7 +33,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-dark dark:text-white">Dashboard</h1>
+        <h1 className="text-2xl font-bold text-primary dark:text-white">Dashboard</h1>
         <p className="text-sm text-dark-5 dark:text-dark-6">
           Track activity, manage agents, and jump into your latest prompts.
         </p>
@@ -44,7 +44,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold text-dark dark:text-white">Token overview</h2>
+        <h2 className="text-lg font-semibold text-primary dark:text-white">Token overview</h2>
         <p className="text-sm text-dark-5 dark:text-dark-6">
           Track balance, credits added, and overall usage.
         </p>

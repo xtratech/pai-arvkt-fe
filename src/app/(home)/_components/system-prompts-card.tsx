@@ -38,14 +38,17 @@ export async function SystemPromptsCard({ className = "" }: { className?: string
   return (
     <div className={`col-span-3 rounded-[10px] border border-stroke bg-white p-6 shadow-1 dark:border-dark-3 dark:bg-gray-dark dark:shadow-card xl:col-span-2 ${className}`}>
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-base font-semibold text-dark dark:text-white">System Prompt</h3>
+        <h3 className="text-base font-semibold text-primary dark:text-white">System Prompt</h3>
         <Link href="/sessions" className="text-sm font-medium text-primary hover:underline">View all</Link>
       </div>
 
       {latest ? (
         <div className="rounded-md border p-4 dark:border-light-yellow-1">
           <div className="mb-1 text-sm text-dark-5 dark:text-dark-6">Latest prompt</div>
-          <Link href={`/system-prompt?session_id=${latest.id}`} className="text-body-md font-semibold text-dark hover:underline dark:text-white">
+          <Link
+            href={`/system-prompt?session_id=${latest.id}`}
+            className="text-body-md font-semibold text-primary hover:underline dark:text-white"
+          >
             {latest.name}
           </Link>
           {latest.system_prompt ? (

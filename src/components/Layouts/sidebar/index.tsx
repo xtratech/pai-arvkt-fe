@@ -8,7 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useUser } from "@/contexts/user-context";
 import type React from "react";
 import { NAV_DATA } from "./data";
-import { ArrowLeftIcon, ChevronUp } from "./icons";
+import { ArrowLeftIcon, ChevronUp, GuideIcon } from "./icons";
 import { MenuItem } from "./menu-item";
 import { useSidebarContext } from "./sidebar-context";
 
@@ -223,6 +223,27 @@ export function Sidebar() {
                 ))
               : null}
           </div>
+
+          {isAuthenticated ? (
+            <div className="mt-2 pr-4">
+              <div className="mb-3 h-px w-full bg-gray-200 dark:bg-dark-3" />
+              <nav role="navigation" aria-label="Guide">
+                <ul>
+                  <li>
+                    <MenuItem
+                      className="flex items-center gap-3 py-3"
+                      as="link"
+                      href="/guide"
+                      isActive={pathname === "/guide"}
+                    >
+                      <GuideIcon className="size-6 shrink-0" aria-hidden="true" />
+                      <span>Guide</span>
+                    </MenuItem>
+                  </li>
+                </ul>
+              </nav>
+            </div>
+          ) : null}
         </div>
       </aside>
 

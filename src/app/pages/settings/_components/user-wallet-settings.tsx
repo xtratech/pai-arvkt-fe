@@ -553,7 +553,7 @@ export function UserWalletSettings() {
                       delta === null
                         ? "text-dark dark:text-white"
                         : delta > 0
-                          ? "text-[rgb(169_240_15)]"
+                          ? "text-primary"
                           : delta < 0
                             ? "text-red-600 dark:text-red-400"
                             : "text-dark dark:text-white";

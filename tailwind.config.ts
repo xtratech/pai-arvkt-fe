@@ -20,14 +20,14 @@ const config: Config = {
         current: "currentColor",
         transparent: "transparent",
         white: "#FFFFFF",
-        primary: "#A9F00F",
+        primary: "rgb(var(--color-primary) / <alpha-value>)",
         stroke: "#E6EBF1",
         "stroke-dark": "#27303E",
         "light-yellow-1": "#FFFF8A",
         // Minimal Cyborg Theme Colors
         obsidian: "#05070c",
         "neon-yellow": "#FFFF5C",
-        "neon-lime": "#A9F00F",
+        "neon-lime": "#FFFF8A",
         "soft-violet": "#a78bfa", // violet-400
         dark: {
           DEFAULT: "#111928",

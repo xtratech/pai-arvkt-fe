@@ -29,7 +29,7 @@ export function SessionCard({ session }: { session: Session }) {
 
   return (
     <div className="col-span-12 rounded-[10px] bg-white py-6 shadow-1 dark:bg-gray-dark dark:shadow-card xl:col-span-4">
-      <h2 className="mb-5.5 px-7.5 text-body-2xlg font-bold text-dark dark:text-white">Name: {session.name}</h2>
+      <h2 className="mb-5.5 px-7.5 text-body-2xlg font-bold text-primary dark:text-white">Name: {session.name}</h2>
 
       <Link href={`/session?id=${session.id}`} className="block px-7.5 py-3 outline-none hover:bg-gray-2 focus-visible:bg-gray-2 dark:hover:bg-dark-2 dark:focus-visible:bg-dark-2">
         <div className="flex flex-col gap-1">
