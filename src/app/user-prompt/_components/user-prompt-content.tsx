@@ -7,14 +7,12 @@ import {
   buildUserPromptFilePath,
 } from "@/services/storage-paths";
 import { useUser } from "@/contexts/user-context";
-import type { SessionRecord } from "@/services/sessions";
+import { fetchSessionDetail, type SessionRecord } from "@/services/sessions";
 import { buildBearerTokenFromTokens } from "@/lib/auth-headers";
 
 type Props = {
-  userId?: string;
   sessionId: string;
   fileName?: string | null;
-  fallbackContent?: string | null;
   initialSession?: SessionRecord | null;
 };
 
@@ -63,10 +61,8 @@ function deriveUserId({
 }
 
 export function UserPromptContent({
-  userId,
   sessionId,
   fileName,
-  fallbackContent,
   initialSession,
 }: Props) {
   const { tokens, attributes, user } = useUser();
@@ -74,7 +70,40 @@ export function UserPromptContent({
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<SessionRecord | null>(initialSession ?? null);
   const [saving, setSaving] = useState<"save" | "saveAs" | "publish" | null>(null);
-  const targetFile = useMemo(() => fileName?.trim() || null, [fileName]);
+
+  const derivedUserId = useMemo(
+    () =>
+      deriveUserId({
+        attributes,
+        user,
+        tokens,
+      }),
+    [attributes, user, tokens],
+  );
+
+  // Load session client-side when not provided by the server
+  useEffect(() => {
+    if (initialSession || !derivedUserId || !sessionId) return;
+    let active = true;
+    fetchSessionDetail(sessionId, derivedUserId)
+      .then(({ session: s }) => {
+        if (active && s) setSession(s);
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [initialSession, derivedUserId, sessionId]);
+
+  const targetFile = useMemo(() => {
+    const fromProp = fileName?.trim() || null;
+    if (fromProp) return fromProp;
+    if (!session) return null;
+    return (
+      (session as any).user_prompt_file_name ??
+      session.user_prompt_files?.find((f) => f?.active)?.file_name ??
+      session.user_prompt_files?.[0]?.file_name ??
+      null
+    );
+  }, [fileName, session]);
 
   const baseEndpoint = useMemo(() => {
     const base = process.env.NEXT_PUBLIC_USERDATA_API_ENDPOINT ?? "";
@@ -109,23 +138,11 @@ export function UserPromptContent({
     return raw;
   }, []);
 
-  const derivedUserId = useMemo(
-    () =>
-      userId ??
-      deriveUserId({
-        attributes,
-        user,
-        tokens,
-      }),
-    [userId, attributes, user, tokens],
-  );
-
   useEffect(() => {
     let active = true;
 
     async function load() {
       if (!derivedUserId || !targetFile) {
-        setContent(fallbackContent ?? null);
         return;
       }
 
@@ -138,9 +155,6 @@ export function UserPromptContent({
         };
         const bearer = buildBearerTokenFromTokens(tokens);
         if (bearer) headers.Authorization = bearer;
-        if (process.env.NEXT_PUBLIC_USERDATA_API_KEY) {
-          headers["x-api-key"] = String(process.env.NEXT_PUBLIC_USERDATA_API_KEY);
-        }
 
         const res = await fetch(url, { headers, cache: "no-store" });
         if (!active) return;
@@ -162,7 +176,6 @@ export function UserPromptContent({
         if (!active) return;
         console.error("[UserPromptContent] Unable to fetch file", err);
         setError("Unable to load this file right now.");
-        setContent(fallbackContent ?? null);
       }
     }
 
@@ -174,7 +187,6 @@ export function UserPromptContent({
     derivedUserId,
     sessionId,
     targetFile,
-    fallbackContent,
     normalizeContent,
     tokens?.accessToken,
     tokens?.idToken,

@@ -88,8 +88,7 @@ export default function PasswordlessAuth({ heading = "Passwordless Sign-in" }: P
     try {
       await confirmSignIn({ challengeResponse: otp.trim() });
 
-      const session = await fetchAuthSession();
-      console.log("[PasswordlessAuth] Authenticated session", session);
+      await fetchAuthSession();
     } catch (err: any) {
       const message = err?.message || "Invalid code. Please try again.";
       setError(message);

@@ -41,8 +41,6 @@ export function configureAmplify() {
   const apiEndpoint = normalizeEndpoint(
     sanitizeEnv(process.env.NEXT_PUBLIC_USERDATA_API_ENDPOINT),
   );
-  const apiKey = sanitizeEnv(process.env.NEXT_PUBLIC_USERDATA_API_KEY);
-
   if ((!userPoolId || !userPoolClientId) && process.env.NODE_ENV !== "production") {
     console.warn(
       "[amplify] Missing Cognito env vars (NEXT_PUBLIC_COGNITO_USER_POOL_ID / NEXT_PUBLIC_COGNITO_USER_POOL_CLIENT_ID). Auth flows will fail until they are provided.",
@@ -83,43 +81,38 @@ export function configureAmplify() {
     }),
   };
 
-  const libraryOptions =
-    apiEndpoint || apiKey
-      ? {
-          API: {
-            REST: {
-              headers: async ({ apiName: currentApiName }: { apiName: string }) => {
-                const headers: Record<string, string> = {};
+  const libraryOptions = apiEndpoint
+    ? {
+        API: {
+          REST: {
+            headers: async ({ apiName: currentApiName }: { apiName: string }) => {
+              const headers: Record<string, string> = {};
 
-                if (apiKey) {
-                  headers["x-api-key"] = apiKey;
-                }
-
-                if (!apiEndpoint || currentApiName !== apiName) {
-                  return headers;
-                }
-
-                try {
-                  const session = await fetchAuthSession();
-                  const bearer = buildBearerTokenFromSession(session);
-                  if (bearer) {
-                    headers.Authorization = bearer;
-                  }
-                } catch (error) {
-                  if (process.env.NODE_ENV !== "production") {
-                    console.debug(
-                      "[amplify] Unable to resolve auth session for REST headers.",
-                      error,
-                    );
-                  }
-                }
-
+              if (!apiEndpoint || currentApiName !== apiName) {
                 return headers;
-              },
+              }
+
+              try {
+                const session = await fetchAuthSession();
+                const bearer = buildBearerTokenFromSession(session);
+                if (bearer) {
+                  headers.Authorization = bearer;
+                }
+              } catch (error) {
+                if (process.env.NODE_ENV !== "production") {
+                  console.debug(
+                    "[amplify] Unable to resolve auth session for REST headers.",
+                    error,
+                  );
+                }
+              }
+
+              return headers;
             },
           },
-        }
-      : undefined;
+        },
+      }
+    : undefined;
 
   if (!("Auth" in resourcesConfig) && process.env.NODE_ENV !== "production") {
     console.warn(

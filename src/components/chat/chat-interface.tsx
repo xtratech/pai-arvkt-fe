@@ -494,6 +494,7 @@ const TRAIN_LLM_KB_EXPERT_COMMAND = "update-kb-super-editor-knowledgE";
 const KB_EXPERT_PREFIX = "kbexpert:";
 const KB_EXPERT_AGENT = "kb-expert";
 const KB_ANALYZER_AGENT = "kb-analyzer";
+const KB_ANALYZER_LLM_MODEL = "gemini-3-flash-preview";
 
 function createId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -1130,6 +1131,7 @@ export function ChatInterface({
         resolvedUserId,
       );
       (requestPayload as Record<string, unknown>).llm = "gemini";
+      (requestPayload as Record<string, unknown>).llm_model = KB_ANALYZER_LLM_MODEL;
       (requestPayload as Record<string, unknown>).agent = KB_ANALYZER_AGENT;
       (requestPayload as Record<string, unknown>).async_job_id = options.asyncJobId || createId();
       (requestPayload as Record<string, unknown>).user_id = resolvedUserId;
@@ -1290,7 +1292,7 @@ export function ChatInterface({
           userId: userIdentifier,
           message: payloadText,
           llm: "gemini",
-          llm_model: "gemini-3-flash-preview",
+          llm_model: KB_ANALYZER_LLM_MODEL,
         };
         if (isKbExpertRequest) payload.agent = KB_EXPERT_AGENT;
 

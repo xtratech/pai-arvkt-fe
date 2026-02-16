@@ -5,9 +5,11 @@ import InputGroup from "@/components/FormElements/InputGroup";
 import { confirmSignUp, signUp } from "aws-amplify/auth";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { isEmailSignupEnabled } from "@/components/Auth/auth-feature-flags";
 
 export function SignupWithPassword() {
   const router = useRouter();
+  const createAccountDisabled = !isEmailSignupEnabled;
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -32,6 +34,11 @@ export function SignupWithPassword() {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+
+    if (createAccountDisabled) {
+      setError("Account creation is temporarily unavailable in production.");
+      return;
+    }
 
     if (!form.email.trim() || !form.password.trim() || !form.confirmPassword.trim()) {
       setError("Email, password, and confirmation are required.");
@@ -204,13 +211,19 @@ export function SignupWithPassword() {
         </div>
       )}
 
+      {createAccountDisabled && (
+        <p className="mb-3 text-xs text-dark-5 dark:text-dark-6">
+          New account creation is temporarily unavailable in production.
+        </p>
+      )}
+
       <div className="mb-4.5">
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || createAccountDisabled}
           className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary p-4 font-medium text-white transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          Create account
+          {createAccountDisabled ? "Create account (Unavailable)" : "Create account"}
           {loading && (
             <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-white border-t-transparent dark:border-primary dark:border-t-transparent" />
           )}

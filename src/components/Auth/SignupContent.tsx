@@ -5,12 +5,17 @@ import { SignupWithPassword } from "@/components/Auth/SignupWithPassword";
 import Link from "next/link";
 import { signInWithRedirect } from "aws-amplify/auth";
 import { useState } from "react";
+import { isGoogleAuthEnabled } from "@/components/Auth/auth-feature-flags";
 
 export function SignupContent() {
   const [socialLoading, setSocialLoading] = useState(false);
   const [socialError, setSocialError] = useState<string | null>(null);
+  const googleAuthUnavailable = !isGoogleAuthEnabled;
 
   const handleGoogle = async () => {
+    if (googleAuthUnavailable) {
+      return;
+    }
     setSocialError(null);
     setSocialLoading(true);
     try {
@@ -30,7 +35,19 @@ export function SignupContent() {
         </div>
       )}
 
-      <GoogleSigninButton text="Sign up" onClick={handleGoogle} loading={socialLoading} />
+      <GoogleSigninButton
+        text="Sign up"
+        onClick={handleGoogle}
+        loading={socialLoading}
+        disabled={googleAuthUnavailable}
+        disabledLabel="Sign up with Google (Unavailable)"
+      />
+
+      {googleAuthUnavailable && (
+        <p className="mt-2 text-center text-xs text-dark-5 dark:text-dark-6">
+          Google sign-up is temporarily unavailable in production.
+        </p>
+      )}
 
       <div className="my-6 flex items-center justify-center">
         <span className="block h-px w-full bg-stroke dark:bg-dark-3"></span>

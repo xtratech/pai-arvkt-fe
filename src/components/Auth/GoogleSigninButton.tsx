@@ -4,14 +4,24 @@ type GoogleSigninButtonProps = {
   text: string;
   onClick: () => void | Promise<void>;
   loading?: boolean;
+  disabled?: boolean;
+  disabledLabel?: string;
 };
 
-export default function GoogleSigninButton({ text, onClick, loading }: GoogleSigninButtonProps) {
+export default function GoogleSigninButton({
+  text,
+  onClick,
+  loading,
+  disabled,
+  disabledLabel,
+}: GoogleSigninButtonProps) {
+  const isDisabled = Boolean(loading || disabled);
+
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={loading}
+      disabled={isDisabled}
       className="flex w-full items-center justify-center gap-3.5 rounded-lg border border-stroke bg-gray-2 p-[15px] font-medium transition hover:bg-opacity-50 disabled:cursor-not-allowed disabled:opacity-70 dark:border-dark-3 dark:bg-dark-2 dark:hover:bg-opacity-50"
     >
       <GoogleIcon />
@@ -21,7 +31,7 @@ export default function GoogleSigninButton({ text, onClick, loading }: GoogleSig
           Connecting...
         </span>
       ) : (
-        `${text} with Google`
+        (disabled && disabledLabel) || `${text} with Google`
       )}
     </button>
   );

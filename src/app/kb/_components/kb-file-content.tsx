@@ -131,9 +131,6 @@ export function KbFileContent({ userId, sessionId, fileName, fallbackEntries }: 
           accept: "text/plain, application/json",
         };
         if (authHeader) headers.Authorization = authHeader;
-        if (process.env.NEXT_PUBLIC_USERDATA_API_KEY) {
-          headers["x-api-key"] = String(process.env.NEXT_PUBLIC_USERDATA_API_KEY);
-        }
 
         const res = await fetch(url, { headers, cache: "no-store" });
         if (!active) return;

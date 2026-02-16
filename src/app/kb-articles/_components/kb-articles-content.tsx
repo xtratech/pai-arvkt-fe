@@ -55,6 +55,8 @@ type CreatorDraftPayload = {
 };
 
 const ANALYZER_CONFIDENCE_THRESHOLD = 0.8;
+const KB_ANALYZER_AGENT = "kb-analyzer";
+const KB_ANALYZER_LLM_MODEL = "gemini-3-flash-preview";
 const ARTICLE_DETAIL_FIELDS = [
   { key: "IntranetStatus", label: "Intranet Status" },
   { key: "WhatsAppStatus", label: "WhatsApp Status" },
@@ -1283,8 +1285,9 @@ export function KbArticlesContent({ sessionId }: Props) {
         (requestPayload as Record<string, unknown>).message = message;
       }
 
-      if (agent === "kb-analyzer") {
+      if (agent === KB_ANALYZER_AGENT) {
         const resolvedJobId = String(asyncJobId ?? "").trim() || createUuidV4();
+        (requestPayload as Record<string, unknown>).llm_model = KB_ANALYZER_LLM_MODEL;
         (requestPayload as Record<string, unknown>).async_job_id = resolvedJobId;
       }
 
@@ -1446,7 +1449,7 @@ export function KbArticlesContent({ sessionId }: Props) {
 
     try {
       const analyzerPayload = await sendChatAgentRequest({
-        agent: "kb-analyzer",
+        agent: KB_ANALYZER_AGENT,
         message: analyzerMessage,
         signal: controller.signal,
         asyncJobId,
@@ -1687,7 +1690,7 @@ export function KbArticlesContent({ sessionId }: Props) {
     setCreateDraftAnalyzing(true);
     try {
       const payload = await sendChatAgentRequest({
-        agent: "kb-analyzer",
+        agent: KB_ANALYZER_AGENT,
         message: draftContent,
         signal: controller.signal,
         asyncJobId,
@@ -2050,7 +2053,7 @@ export function KbArticlesContent({ sessionId }: Props) {
                         analyzerJobRef.current = null;
                       }}
                       className="custom-scrollbar h-40 w-full resize-none rounded-lg border border-stroke bg-white px-3 py-2 text-sm text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-                      placeholder='Describe what this article should cover... (e.g., "How to replace the CO2 cylinder for Quooker CUBE in UAE")'
+                      placeholder='Describe what this article should cover... (e.g., "How to replace the CO2 cylinder for CUBE in UAE")'
                       disabled={createSurpriseLoading || createAnalyzing || createSaving}
                     />
 

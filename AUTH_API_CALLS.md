@@ -1,0 +1,4 @@
+Find where API calls are made (e.g., fetch/axios clients, API service modules)
+Ensure the Cognito ID token is attached as an Authorization: Bearer <token> header on every request to the secured endpoints
+Verify the auth flow — make sure the token is being retrieved from the Cognito session correctly and refreshed when expired
+The key thing is that all 24 endpoints that were just locked down now expect a valid Cognito JWT in the Authorization header. This frontend already uses Cognito for login but isn't sending the token on API calls. I need you to change teh solution to start sending the token on API calls. The only exception is the Stripe webhook endpoint, as it must remain unauthenticated.

@@ -1,9 +1,7 @@
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getSessionById } from "../session/fetch";
 import { SystemPromptContent } from "./_components/system-prompt-content";
-import type { SessionRecord } from "@/services/sessions";
 
 export const metadata: Metadata = {
   title: "System Prompt",
@@ -29,8 +27,6 @@ export default async function SystemPromptPage({
     );
   }
 
-  const session = await getSessionById(sessionId).catch(() => null);
-
   return (
     <div className="mx-auto w-full max-w-[1460px]">
       <Breadcrumb pageName="System Prompt" />
@@ -40,9 +36,6 @@ export default async function SystemPromptPage({
           <div>
             <h2 className="text-lg font-semibold text-primary dark:text-white">System Prompt Settings</h2>
             <div className="mt-1 text-sm text-dark-5 dark:text-dark-6">
-              Agent:{" "}
-              <span className="font-medium text-dark dark:text-white">{session?.name ?? "Unknown"}</span>
-              <span className="mx-2">|</span>
               ID:{" "}
               <Link
                 href={`/session?id=${sessionId}`}
@@ -77,7 +70,7 @@ export default async function SystemPromptPage({
 
         <SystemPromptContent
           sessionId={sessionId}
-          initialSession={session as SessionRecord | null}
+          initialSession={null}
         />
       </div>
     </div>

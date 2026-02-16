@@ -1,6 +1,5 @@
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import type { Metadata } from "next";
-import { getSessionById } from "../session/fetch";
 import { UserPromptContent } from "./_components/user-prompt-content";
 
 export const metadata: Metadata = {
@@ -27,15 +26,6 @@ export default async function UserPromptPage({
     );
   }
 
-  const session = await getSessionById(sessionId).catch(() => null);
-
-  const userId = (session as any)?.user_id as string | undefined;
-  const fileName =
-    fileId ??
-    (session as any)?.user_prompt_file_name ??
-    (session as any)?.user_prompt_files?.find?.((f: any) => f?.active)?.file_name ??
-    (session as any)?.user_prompt_files?.[0]?.file_name;
-
   return (
     <div className="mx-auto w-full max-w-[1460px]">
       <Breadcrumb pageName="User Prompt" />
@@ -44,8 +34,6 @@ export default async function UserPromptPage({
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-primary dark:text-white">Agent User Prompt</h2>
           <div className="mt-1 text-sm text-dark-5 dark:text-dark-6">
-            Agent: <span className="text-dark dark:text-white font-medium">{session?.name ?? "Unknown"}</span>
-            <span className="mx-2">|</span>
             ID:{" "}
             <a
               href={`/session?id=${sessionId}`}
@@ -54,19 +42,12 @@ export default async function UserPromptPage({
               {sessionId}
             </a>
           </div>
-          {fileName ? (
-            <div className="mt-1 text-sm text-dark-5 dark:text-dark-6">
-              File: <span className="text-dark dark:text-white">{fileName}</span>
-            </div>
-          ) : null}
         </div>
 
         <UserPromptContent
-          userId={userId}
           sessionId={sessionId}
-          fileName={fileName}
-          fallbackContent={(session as any)?.user_prompt}
-          initialSession={session as any}
+          fileName={fileId}
+          initialSession={null}
         />
       </div>
     </div>

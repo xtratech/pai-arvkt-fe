@@ -73,22 +73,12 @@ export function getPaymentsEndpoint() {
   return configured ? normalizeBase(configured) : deriveDefaultPaymentsEndpoint();
 }
 
-function getUserWalletApiKey() {
-  return String(
-    process.env.NEXT_PUBLIC_USERWALLET_API_KEY ?? process.env.NEXT_PUBLIC_USERDATA_API_KEY ?? "",
-  ).trim();
-}
-
 async function buildHeaders(contentType?: string) {
   const headers: Record<string, string> = {
     accept: "application/json",
   };
   if (contentType) {
     headers["Content-Type"] = contentType;
-  }
-  const apiKey = getUserWalletApiKey();
-  if (apiKey) {
-    headers["x-api-key"] = apiKey;
   }
   return withAuthHeaders(headers);
 }
@@ -110,7 +100,7 @@ export async function fetchUserWallet(userId: string, options?: { signal?: Abort
     throw new Error("Missing user id for wallet lookup.");
   }
 
-  const url = new URL(endpoint);
+  const url = new URL(endpoint, window.location.origin);
   url.searchParams.set("user_id", resolvedUserId);
 
   const res = await fetch(url.toString(), {

@@ -7,7 +7,7 @@ import { Header } from "./header";
 import RequireAuth from "@/components/Auth/RequireAuth";
 import { useIdleResumeTrainingCheck } from "@/hooks/use-idle-resume-check";
 
-const CHROMELESS_PATHS = ["/chat-editor"];
+const CHROMELESS_PATHS = ["/chat-editor", "/case-study"];
 
 export function AppShell({ children }: PropsWithChildren) {
   const pathname = usePathname() || "";

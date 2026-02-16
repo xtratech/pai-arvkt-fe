@@ -1312,12 +1312,6 @@ export function SystemPromptContent({
       ) : null}
       {loading ? <div className="text-sm text-dark-5 dark:text-dark-6">Loading current settings...</div> : null}
 
-      {agentConfigEndpoint ? (
-        <div className="rounded-lg border border-stroke bg-gray-1 px-3 py-2 text-xs text-dark-5 dark:border-dark-3 dark:bg-dark-2 dark:text-dark-6">
-          Endpoint: <span className="font-mono break-all text-dark dark:text-white">{agentConfigEndpoint}</span>
-        </div>
-      ) : null}
-
       {activeProfile === "kb_expert" ? (
         <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-dark dark:border-primary/25 dark:bg-primary/10 dark:text-white">
           Tip: In Chat Editor, prefix a message with{" "}

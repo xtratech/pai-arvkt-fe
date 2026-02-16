@@ -1,5 +1,9 @@
 /** @type {import("next").NextConfig} */
 const nextConfig = {
+  env: {
+    BACKEND_BASE_URL: process.env.BACKEND_BASE_URL,
+    BACKEND_API_KEY: process.env.BACKEND_API_KEY,
+  },
   images: {
     remotePatterns: [
       {

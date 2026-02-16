@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir /s \"C:\\\\Work\\\\pai-arvkt-fe-PROD\\\\pai-arvkt-fe-PROD\\\\src\" /b)",
+      "Bash(head:*)",
+      "Bash(wc:*)",
+      "Bash(del \"C:\\\\Work\\\\pai-arvkt-fe-PROD\\\\pai-arvkt-fe-PROD\\\\src\\\\app\\\\\\(home\\)\\\\_components\\\\knowledgebase-card.tsx\")",
+      "Bash(npm run build:*)",
+      "Bash(test:*)"
+    ]
+  }
+}

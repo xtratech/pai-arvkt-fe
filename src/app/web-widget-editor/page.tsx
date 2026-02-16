@@ -1,7 +1,6 @@
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getSessionById } from "../session/fetch";
 import { WebWidgetEditor } from "./_components/web-widget-editor";
 
 export const metadata: Metadata = {
@@ -28,8 +27,6 @@ export default async function WebWidgetEditorPage({
     );
   }
 
-  const session = await getSessionById(sessionId).catch(() => null);
-
   return (
     <div className="mx-auto w-full max-w-[1460px]">
       <Breadcrumb pageName="Web Widget Editor" />
@@ -39,11 +36,6 @@ export default async function WebWidgetEditorPage({
           <div>
             <h2 className="text-lg font-semibold text-primary dark:text-white">Web Widget Editor</h2>
             <div className="mt-1 text-sm text-dark-5 dark:text-dark-6">
-              Agent:{" "}
-              <span className="font-medium text-dark dark:text-white">
-                {session?.name ?? "Unknown"}
-              </span>
-              <span className="mx-2">|</span>
               ID:{" "}
               <Link
                 href={`/session?id=${sessionId}`}
